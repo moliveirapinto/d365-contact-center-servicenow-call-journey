@@ -38,7 +38,8 @@ erDiagram
 
 ## What the agent sees
 
-* **Case** (Workspace): a *Call Journey* section right under the main form listing **every call** on the Case, newest first. Each call has its own card with: date tile, *Call received → Virtual agent → Queue → Agent answered → Call ended*, durations, sentiment, caller, and **▶ Play recording / Transcript / Call details** buttons. **Play call recording** in the Case ⋯ menu opens one pop-up with a tab per call.
+* **Case Activity stream** (Workspace): every call posts entries on the Case, like the Salesforce case feed: **📞 Contact Center Call created** when the IVR opens the Case and **📞 Contact Center Call completed** (total, talk, agent, sentiment, quality score) when D365 reports the call ended. Click **Open call journey** to open the call. The Case form itself is left untouched.
+* **Contact Center Call** record (the page the link opens): see below. A *Play call recording* action on the Case ⋯ menu opens one pop-up with a tab per call.
 * **Classic UI**: a *Contact Center Calls* related list on the Case and on the Customer Contact.
 * **Contact Center Call**: the same card plus the **AI quality evaluation** (score, band, summary, coaching recommendation, every indicator with its reasoning). **Play recording** and **Transcript** buttons open the D365 conversation in a full-screen pop-up (audio player, waveform, transcript, quality trendline, evaluation side pane).
 * **Softphone**: the Dynamics 365 Contact Center conversation widget in the Workspace top bar.

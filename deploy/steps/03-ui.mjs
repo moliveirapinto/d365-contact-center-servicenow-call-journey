@@ -67,6 +67,17 @@ async function section(table, caption, viewName, elements, position) {
     return id;
 }
 
+// Remove a section (and its form links and elements) from every view of a table.
+async function removeSection(table, caption) {
+    const sections = await api('GET', `/api/now/table/sys_ui_section?sysparm_query=${encodeURIComponent('name=' + table + '^caption=' + caption)}&sysparm_fields=sys_id`);
+    for (const sec of sections) {
+        for (const tbl of ['sys_ui_form_section', 'sys_ui_element']) {
+            const rows = await api('GET', `/api/now/table/${tbl}?sysparm_query=${encodeURIComponent('sys_ui_section=' + sec.sys_id)}&sysparm_fields=sys_id`);
+            for (const r of rows) await api('DELETE', `/api/now/table/${tbl}/${r.sys_id}`);
+        }
+        await api('DELETE', `/api/now/table/sys_ui_section/${sec.sys_id}`);
+    }
+}
 // Move a section to the front of an existing form and push the others down.
 async function placeAfterMain(table, viewName, caption) {
     const view = viewName ? await find('sys_ui_view', `name=${viewName}`) : null;
@@ -121,10 +132,8 @@ export default async function ui() {
         await section(CALL, 'Call details', view, callDetails, 1);
         await section(CALL, 'Quality evaluation', view, quality, 2);
     }
-    for (const view of [null, 'workspace']) {
-        await section(CASE, 'Call Journey', view, ['u_call_journey', 'u_d365_call_recording', 'u_d365_conversation_id', 'u_d365_recording_url'], 99);
-        await placeAfterMain(CASE, view, 'Call Journey');
-    }
+    // Calls appear in the Case Activity stream (see 02-logic), not on the Case form: remove the old section.
+    await removeSection(CASE, 'Call Journey');
     for (const view of [null, 'workspace']) {
         await relatedList(CASE, view, 'u_cc_call.u_case');
         await relatedList('customer_contact', view, 'u_cc_call.u_contact');

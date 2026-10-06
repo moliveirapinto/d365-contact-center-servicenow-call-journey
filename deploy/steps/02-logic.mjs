@@ -72,6 +72,39 @@ const BR_CASE = `(function executeRule(current, previous) {
     }
 })(current, previous);`;
 
+const BR_ACTIVITY = `(function executeRule(current, previous) {
+    // Post the call to the Case's Activity stream (the equivalent of the Salesforce case-feed entry).
+    try {
+        if (current.u_case.nil()) return;
+        var isInsert = current.operation() == 'insert';
+        var linked = isInsert || current.u_case.changes();
+        var completed = current.getValue('u_status') == 'Completed' && (isInsert || current.u_status.changes() || current.u_case.changes());
+
+        var util = new D365CCUtil();
+        var cs = new GlideRecord('${CASE}');
+        if (!cs.get(current.getValue('u_case'))) return;
+
+        var post = function (kind) {
+            var marker = kind === 'created' ? 'Contact Center Call created' : 'Contact Center Call completed';
+            var seen = new GlideRecord('sys_journal_field');
+            seen.addQuery('element_id', cs.getUniqueValue());
+            seen.addQuery('element', 'work_notes');
+            seen.addQuery('value', 'CONTAINS', marker);
+            seen.addQuery('value', 'CONTAINS', current.getUniqueValue());
+            seen.setLimit(1);
+            seen.query();
+            if (seen.next()) return;
+            cs.work_notes = util.activityNote(current, kind);
+            cs.update();
+        };
+
+        if (linked) post('created');
+        if (completed) post('completed');
+    } catch (e) {
+        gs.error('[D365CC] Could not post call to Case activity: ' + e);
+    }
+})(current, previous);`;
+
 async function scriptInclude(name, scriptText, description) {
     return upsert('sys_script_include', `name=${name}`, {
         name, api_name: `global.${name}`, script: scriptText, active: 'true', access: 'public',
@@ -104,6 +137,8 @@ export default async function logic() {
         'Fills title, total duration and virtual agent time; inherits the customer from the Case.');
     await businessRule('D365CC - Create call from IVR case', CASE, 'after', 200, true, true, BR_CASE,
         'When the Copilot Studio IVR sets the D365 Conversation ID on a Case, create the matching Contact Center Call.');
+    await businessRule('D365CC - Post call to Case activity', CALL, 'after', 300, true, true, BR_ACTIVITY,
+        'Adds Contact Center Call created / completed entries (with a link to the call journey) to the Case activity stream.');
     log('  business rules ok');
 
     // Calculated (virtual) fields: always live, rendered in each viewer's own time zone, follow the d365cc.* settings.

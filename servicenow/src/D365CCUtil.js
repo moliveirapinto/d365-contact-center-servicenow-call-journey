@@ -42,5 +42,32 @@ D365CCUtil.prototype = {
         return Math.round((b - a) / 1000);
     },
 
+    // Path that opens the call (its Call Journey card, recording and evaluation) in the CSM/FSM Configurable Workspace.
+    callPath: function (callSysId) {
+        return '/now/cwf/agent/record/u_cc_call/' + callSysId;
+    },
+
+    // Case activity entry (a work note rendered as HTML by the Activity stream). kind: 'created' | 'completed'
+    activityNote: function (gr, kind) {
+        var j = new D365CCJourney();
+        var esc = function (s) { return j.esc(s); };
+        var head = kind === 'created' ? 'Contact Center Call created' : 'Contact Center Call completed';
+        var html = '<b>\uD83D\uDCDE ' + head + '</b><br/>' + esc(gr.getValue('u_title')) + '<br/>';
+        if (kind === 'created') {
+            html += 'Inbound voice call, handled by the virtual agent<br/>';
+        } else {
+            var bits = [];
+            var total = j.secs(gr.getValue('u_total_duration_seconds'));
+            if (total) bits.push('Total ' + total);
+            var talk = j.secs(gr.getValue('u_talk_time_seconds'));
+            if (talk) bits.push('Talk ' + talk);
+            if (gr.getValue('u_agent')) bits.push('Agent ' + gr.getValue('u_agent'));
+            if (gr.getValue('u_customer_sentiment')) bits.push(gr.getValue('u_customer_sentiment') + ' sentiment');
+            if (gr.getValue('u_quality_score')) bits.push('Quality ' + gr.getValue('u_quality_score') + ' (' + j.scoreBand(Number(gr.getValue('u_quality_score')))[0] + ')');
+            if (bits.length) html += esc(bits.join(' | ')) + '<br/>';
+        }
+        html += '<a href="' + this.callPath(gr.getUniqueValue()) + '" target="_blank" rel="noopener">Open call journey</a>';
+        return '[code]' + html + '[/code]';
+    },
     type: 'D365CCUtil'
 };
