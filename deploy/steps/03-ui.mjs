@@ -18,7 +18,7 @@ const WORKSPACE_CLICK = (title, param) => `function onClick(g_form) {
         url: '/d365cc_recording.do?${param}=' + encodeURIComponent(g_form.getUniqueValue()),
         title: '${title}',
         size: 'lg',
-        height: 780
+        height: 840
     });
 }`;
 
