@@ -6,7 +6,8 @@ const steps = [
     ['02-logic', './steps/02-logic.mjs'],
     ['03-ui', './steps/03-ui.mjs'],
     ['04-security', './steps/04-security.mjs'],
-    ['05-rest', './steps/05-rest.mjs']
+    ['05-rest', './steps/05-rest.mjs'],
+    ['06-play', './steps/06-play.mjs']
 ];
 
 for (const [name, file] of steps) {
@@ -26,3 +27,4 @@ for (const [name, file] of steps) {
     }
 }
 log('\nDone.');
+

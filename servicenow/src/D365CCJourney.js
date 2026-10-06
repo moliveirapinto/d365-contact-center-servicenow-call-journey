@@ -74,7 +74,7 @@ D365CCJourney.prototype = {
         var C = this.C;
         var style = 'display:inline-flex;align-items:center;gap:6px;margin:0 8px 0 0;padding:6px 14px;border-radius:4px;font-size:13px;font-weight:600;line-height:20px;text-decoration:none;' +
             (primary ? 'background:' + C.brand + ';color:#ffffff;border:1px solid ' + C.brand + ';' : 'background:#ffffff;color:' + C.text + ';border:1px solid #d1d1d1;');
-        return '<a href="' + href + '" target="_blank" rel="noopener" style="' + style + '">' +
+        return '<a href="' + href + '" target="_top" style="' + style + '">' +
             '<span style="display:inline-block;width:16px;height:16px;">' + this.icon(iconName, 16, primary ? '#ffffff' : C.text2) + '</span>' + label + '</a>';
     },
 
@@ -143,7 +143,11 @@ D365CCJourney.prototype = {
         if (gr.getValue('u_caller_phone')) stats += this.stat('phone', C.brand, 'Caller', this.esc(gr.getValue('u_caller_phone')));
         stats = '<div>' + stats + '</div>';
 
-        var html = '<div style="font-family:' + this.FONT + ';color:' + C.text + ';">' + header + timeline + stats + '</div>';
+        var play = '/d365cc_play.do?sysparm_call=' + callId;
+        var actions = url ? '<div style="margin-top:4px;">' + this.button('play', 'Play recording', play, true) + this.button('transcript', 'Transcript', play, false) +
+            (full ? '' : this.button('open', 'Call details', '/now/cwf/agent/record/u_cc_call/' + callId, false)) + '</div>' : '';
+
+        var html = '<div style="font-family:' + this.FONT + ';color:' + C.text + ';">' + header + timeline + stats + actions + '</div>';
         if (full) html += this.renderQuality(gr);
         return html;
     },
