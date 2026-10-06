@@ -47,7 +47,8 @@
         gr.setValue(f, v);
     }
 
-    if (created && !gr.u_call_received.nil()) gr.u_title = new D365CCUtil().titleFor(gr.getValue('u_call_received'));
+    // D365 is the source of truth for when the call started, so (re)derive the title from it.
+    if (body.call_received) gr.u_title = new D365CCUtil().titleFor(gr.getValue('u_call_received'));
     var id = created ? gr.insert() : gr.update();
     return { sys_id: String(id || gr.getUniqueValue()), created: created, conversation_id: convId };
 })(request, response);
