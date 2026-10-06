@@ -28,6 +28,7 @@ const PAGE = `<?xml version="1.0" encoding="utf-8" ?>
     var callId = String(RP.getParameterValue('sysparm_call') || '');
     var caseId = String(RP.getParameterValue('sysparm_case') || '');
     var ok = /^[0-9a-f]{32}$/;
+    var fromCase = String(RP.getParameterValue('sysparm_from') || '');
     var param = '', id = '', table = '';
     if (ok.test(callId)) { param = 'sysparm_call'; id = callId; table = 'u_cc_call'; }
     else if (ok.test(caseId)) { param = 'sysparm_case'; id = caseId; table = 'sn_customerservice_case'; }
@@ -40,6 +41,7 @@ const PAGE = `<?xml version="1.0" encoding="utf-8" ?>
         pr.setValue('value', param + '|' + id + '|' + new GlideDateTime().getNumericValue());
         if (pr.isNewRecord()) pr.insert(); else pr.update();
         dest = '/now/cwf/agent/record/' + table + '/' + id;
+        if (param === 'sysparm_call' && ok.test(fromCase)) dest = '/now/cwf/agent/record/sn_customerservice_case/' + fromCase;
     }
     dest;
 ]]></g:evaluate>
