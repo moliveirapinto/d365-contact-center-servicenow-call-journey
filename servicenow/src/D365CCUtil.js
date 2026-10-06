@@ -50,11 +50,13 @@ D365CCUtil.prototype = {
     // Case activity entry (a work note rendered as HTML by the Activity stream). kind: 'created' | 'completed'
     activityNote: function (gr, kind) {
         var j = new D365CCJourney();
+        var icons = new D365CCIcons();
         var esc = function (s) { return j.esc(s); };
-        var head = kind === 'created' ? 'Contact Center Call created' : 'Contact Center Call completed';
-        var html = '<b>\uD83D\uDCDE ' + head + '</b><br/>' + esc(gr.getValue('u_title')) + '<br/>';
-        if (kind === 'created') {
-            html += 'Inbound voice call, handled by the virtual agent<br/>';
+        var done = kind === 'completed';
+        var head = done ? 'Contact Center call completed' : 'Contact Center call created';
+        var detail;
+        if (!done) {
+            detail = 'Inbound voice call, handled by the virtual agent';
         } else {
             var bits = [];
             var total = j.secs(gr.getValue('u_total_duration_seconds'));
@@ -64,9 +66,14 @@ D365CCUtil.prototype = {
             if (gr.getValue('u_agent')) bits.push('Agent ' + gr.getValue('u_agent'));
             if (gr.getValue('u_customer_sentiment')) bits.push(gr.getValue('u_customer_sentiment') + ' sentiment');
             if (gr.getValue('u_quality_score')) bits.push('Quality ' + gr.getValue('u_quality_score') + ' (' + j.scoreBand(Number(gr.getValue('u_quality_score')))[0] + ')');
-            if (bits.length) html += esc(bits.join(' | ')) + '<br/>';
+            detail = bits.join('  |  ');
         }
-        html += '<a href="' + this.callPath(gr.getUniqueValue()) + '" target="_blank" rel="noopener">Open call journey</a>';
+        var html = '<div style="font-family:' + j.FONT + ';">' +
+            '<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#242424;">' +
+            '<span style="display:inline-block;width:16px;height:16px;">' + icons.img(done ? 'check' : 'call_inbound', 16, done ? '#107c10' : '#0f6cbd') + '</span>' + head + '<span style="display:none;"> - </span></div>' +
+            '<div style="margin:4px 0 0 24px;font-size:13px;color:#424242;">' + esc(gr.getValue('u_title')) + '</div>' +
+            (detail ? '<div style="margin:2px 0 0 24px;font-size:13px;color:#616161;">' + esc(detail) + '</div>' : '') +
+            '<div style="margin:6px 0 0 24px;"><a href="' + this.callPath(gr.getUniqueValue()) + '" target="_blank" rel="noopener" style="font-size:13px;font-weight:600;color:#0f6cbd;text-decoration:none;">Open call journey</a></div></div>';
         return '[code]' + html + '[/code]';
     },
     type: 'D365CCUtil'

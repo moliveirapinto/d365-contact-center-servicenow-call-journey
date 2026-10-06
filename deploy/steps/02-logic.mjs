@@ -85,7 +85,7 @@ const BR_ACTIVITY = `(function executeRule(current, previous) {
         if (!cs.get(current.getValue('u_case'))) return;
 
         var post = function (kind) {
-            var marker = kind === 'created' ? 'Contact Center Call created' : 'Contact Center Call completed';
+            var marker = kind === 'created' ? 'Contact Center call created' : 'Contact Center call completed';
             var seen = new GlideRecord('sys_journal_field');
             seen.addQuery('element_id', cs.getUniqueValue());
             seen.addQuery('element', 'work_notes');
@@ -129,6 +129,7 @@ async function virtualField(table, element, calcScript) {
 }
 
 export default async function logic() {
+    await scriptInclude('D365CCIcons', readSrc('D365CCIcons.js'), 'D365 Contact Center: Fluent System Icons (MIT) as inline images');
     await scriptInclude('D365CCUtil', readSrc('D365CCUtil.js'), 'D365 Contact Center: settings, URLs, titles and time helpers');
     await scriptInclude('D365CCJourney', readSrc('D365CCJourney.js'), 'D365 Contact Center: renders the Call Journey card and AI quality evaluation');
     log('  script includes ok');

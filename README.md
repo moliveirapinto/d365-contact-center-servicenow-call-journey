@@ -101,6 +101,7 @@ All steps are idempotent: run them as often as you like. Run a subset with `node
 
 ## Notes and limits
 
+* **Icons.** The card uses [Fluent System Icons](https://github.com/microsoft/fluentui-system-icons) (MIT), embedded as inline images so they survive ServiceNow's rich-text sanitizer. Regenerate the Script Include with `node deploy/tools/fetch-icons.mjs`.
 * **Time zones.** Titles use `d365cc.time_zone` (IANA name, e.g. `America/New_York`); the journey card shows times in each viewer's own ServiceNow time zone.
 * **Secrets.** The sync flow stores the integration credentials in the flow definition. For production, move them to an environment variable backed by Key Vault.
 * **Workspace related list.** The Workspace tab strip (SLAs, Tasks, Emails…) is configured in UI Builder, not by related-list records, so add a *Contact Center Calls* tab there by hand if you want one; the Call Journey section already lists all calls.
