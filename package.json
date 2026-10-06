@@ -1,0 +1,1 @@
+{"name":"d365-contact-center-servicenow-call-journey","version":"1.0.0","private":true,"type":"module","scripts":{"deploy":"node deploy/deploy.mjs"},"engines":{"node":">=18"}}

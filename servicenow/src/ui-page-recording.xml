@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<j:jelly trim="false" xmlns:j="jelly:core" xmlns:g="glide" xmlns:j2="null" xmlns:g2="null">
+<g:evaluate var="jvar_calls" jelly="true"><![CDATA[
+    // Calls come from the database, never from a URL parameter, so this page can only ever frame the
+    // Dynamics 365 environment configured in d365cc.org_url.
+    var util = new D365CCUtil();
+    var list = [];
+    var callId = String(RP.getParameterValue('sysparm_call') || '');
+    var caseId = String(RP.getParameterValue('sysparm_case') || '');
+    var gr = new GlideRecord('u_cc_call');
+    if (callId) gr.addQuery('sys_id', callId);
+    else if (caseId) gr.addQuery('u_case', caseId);
+    else gr.addQuery('sys_id', 'none');
+    gr.orderByDesc('u_call_received');
+    gr.setLimit(25);
+    gr.query();
+    while (gr.next()) {
+        var url = util.conversationUrl(gr.getValue('u_conversation_id'), true);
+        if (!url) continue;
+        list.push({ id: gr.getUniqueValue(), title: gr.getValue('u_title') || 'Call', agent: gr.getValue('u_agent') || '', url: url, open: util.conversationUrl(gr.getValue('u_conversation_id'), false) });
+    }
+    JSON.stringify(list);
+]]></g:evaluate>
+<style>
+    html, body { margin: 0; height: 100%; font-family: "Source Sans Pro", Helvetica, Arial, sans-serif; }
+    .tabs { position: absolute; top: 0; left: 0; right: 0; height: 44px; display: flex; gap: 8px; align-items: center; padding: 0 12px; border-bottom: 1px solid #d8dde6; background: #fff; overflow-x: auto; }
+    .tab { padding: 6px 12px; border: 1px solid #d8dde6; border-radius: 16px; background: #f8f9fb; font-size: 13px; cursor: pointer; white-space: nowrap; }
+    .tab.on { background: #1b6ac9; border-color: #1b6ac9; color: #fff; }
+    .wrap { position: absolute; left: 0; right: 0; bottom: 40px; background: #f4f6fa; }
+    #d365-frame { width: 100%; height: 100%; border: 0; background: #fff; }
+    #d365-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #5f6b7a; font-size: 14px; }
+    .footer { position: absolute; left: 0; right: 0; bottom: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-top: 1px solid #d8dde6; background: #fff; font-size: 13px; }
+    .footer a { color: #1b6ac9; text-decoration: none; }
+    .msg { padding: 24px; color: #5f6b7a; font-size: 14px; }
+</style>
+<div id="calls-data" data-calls="${HTML:jvar_calls}" style="display:none"></div>
+<div id="tabs" class="tabs" style="display:none"></div>
+<div id="wrap" class="wrap" style="top:0">
+    <div id="d365-loading">Loading the call from Dynamics 365 Contact Center…</div>
+    <iframe id="d365-frame" title="Dynamics 365 Contact Center call" allow="autoplay; clipboard-write; microphone"
+            onload="document.getElementById('d365-loading').style.display='none'"></iframe>
+</div>
+<div class="footer" id="footer">
+    <a id="newtab" href="#" target="_blank" rel="noopener">Open in a new tab ↗</a>
+    <span style="color:#5f6b7a;">Dynamics 365 Contact Center</span>
+</div>
+<div id="empty" class="msg" style="display:none">No Dynamics 365 recording is linked yet, or the Dynamics 365 URL is not configured (system property <b>d365cc.org_url</b>).</div>
+<script>
+    var calls = JSON.parse(document.getElementById('calls-data').getAttribute('data-calls') || '[]');
+    function show(i) {
+        var c = calls[i];
+        document.getElementById('d365-loading').style.display = 'flex';
+        document.getElementById('d365-frame').src = c.url;
+        document.getElementById('newtab').href = c.open;
+        var t = document.querySelectorAll('.tab');
+        for (var k = 0; k !== t.length; k++) t[k].className = 'tab' + (k === i ? ' on' : '');
+    }
+    if (calls.length === 0) {
+        document.getElementById('wrap').style.display = 'none';
+        document.getElementById('footer').style.display = 'none';
+        document.getElementById('empty').style.display = 'block';
+    } else {
+        if (calls.length !== 1) {
+            var bar = document.getElementById('tabs');
+            bar.style.display = 'flex';
+            document.getElementById('wrap').style.top = '44px';
+            for (var n = 0; n !== calls.length; n++) {
+                var b = document.createElement('div');
+                b.className = 'tab';
+                b.textContent = calls[n].title.replace('Phone call received on ', '') + (calls[n].agent ? ' · ' + calls[n].agent : '');
+                b.setAttribute('data-i', n);
+                b.onclick = function () { show(parseInt(this.getAttribute('data-i'), 10)); };
+                bar.appendChild(b);
+            }
+        }
+        show(0);
+    }
+</script>
+</j:jelly>
+
+
