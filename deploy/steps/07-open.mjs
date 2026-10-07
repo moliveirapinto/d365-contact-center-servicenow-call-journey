@@ -29,19 +29,28 @@ const PAGE = `<?xml version="1.0" encoding="utf-8" ?>
 </j:jelly>`;
 
 const LISTENER = `function onLoad() {
+    var me = '';
+    try { me = sessionStorage.getItem('d365cc_win') || ''; if (!me) { me = String(Math.random()); sessionStorage.setItem('d365cc_win', me); } } catch (e) { me = String(Math.random()); }
+    var mark = function () { try { localStorage.setItem('d365cc_active', me); } catch (e) { } };
+    mark();
+    try { window.addEventListener('mousedown', mark, true); window.addEventListener('focus', mark); } catch (e) { }
+    var seen = '';
     var bc = new BroadcastChannel('d365cc_open');
     bc.onmessage = function (e) {
         var d = e.data;
         if (!d) return;
         if (!d.call) return;
-        var key = 'd365cc_handled';
-        if (localStorage.getItem(key) === d.msg) return;
-        localStorage.setItem(key, d.msg);
+        var active = '';
+        try { active = localStorage.getItem('d365cc_active') || ''; } catch (x) { }
+        if (active !== me) return;
+        var last = '';
+        try { last = sessionStorage.getItem('d365cc_handled') || ''; } catch (x) { last = seen; }
+        if (last === d.msg) return;
+        try { sessionStorage.setItem('d365cc_handled', d.msg); } catch (x) { seen = d.msg; }
         g_aw.openRecord('u_cc_call', d.call);
         bc.postMessage({ ack: d.call });
     };
 }`;
-
 export default async function open() {
     await upsert('sys_ui_page', 'name=d365cc_open', { name: 'd365cc_open', html: PAGE.replace(/^<\?xml[^>]*\?>\s*/, ''), direct: 'false', category: 'general' });
     for (const table of ['u_cc_call', 'sn_customerservice_case']) {

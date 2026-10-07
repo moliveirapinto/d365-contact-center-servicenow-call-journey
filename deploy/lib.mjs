@@ -30,11 +30,21 @@ if (!cfg.instance || !cfg.user || !cfg.pass) {
 const auth = 'Basic ' + Buffer.from(`${cfg.user}:${cfg.pass}`).toString('base64');
 
 export async function api(method, urlPath, body) {
-    const res = await fetch(`https://${cfg.instance}${urlPath}`, {
-        method,
-        headers: { Authorization: auth, Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: body === undefined ? undefined : JSON.stringify(body)
-    });
+    let res;
+    for (let attempt = 1; ; attempt++) {
+        try {
+            res = await fetch(`https://${cfg.instance}${urlPath}`, {
+                method,
+                headers: { Authorization: auth, Accept: 'application/json', 'Content-Type': 'application/json' },
+                body: body === undefined ? undefined : JSON.stringify(body)
+            });
+            break;
+        } catch (e) {
+            // Dropped connections happen now and then on busy instances; retry before giving up.
+            if (attempt >= 4) throw e;
+            await new Promise((r) => setTimeout(r, 1500 * attempt));
+        }
+    }
     const text = await res.text();
     let json;
     try { json = text ? JSON.parse(text) : {}; } catch { json = { raw: text }; }
