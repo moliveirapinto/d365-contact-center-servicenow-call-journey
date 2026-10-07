@@ -1,8 +1,8 @@
 /*
- * D365CC - Post-install configuration  (Fix Script, safe to run any number of times)
+ * D365CC - Post-install configuration  (optional repair, safe to run any number of times)
  *
- * The update set carries the table, scripts, business rules, UI Page/Actions, REST API and system properties.
- * This script adds what update sets do not carry reliably:
+ * Everything is already inside the update set, so you do NOT need to run this after installing.
+ * Run it only to repair an install (it re-creates the form layout, related lists and softphone) and to give yourself the softphone role. It:
  *   1. checks the d365cc.* system properties are filled in
  *   2. makes sure the Contact Center Call form layouts exist (Call Journey card on top)
  *   3. adds the "Contact Center Calls" related lists to Case and Customer Contact

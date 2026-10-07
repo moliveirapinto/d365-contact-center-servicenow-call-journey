@@ -30,7 +30,7 @@ This is the ServiceNow port of the [Salesforce Call Journey](https://github.com/
 3. [Before you start](#before-you-start)
 4. [Install, step by step](#install-step-by-step)
    * [Step 1 – ServiceNow: import the update set](#step-1--servicenow-import-the-update-set)
-   * [Step 2 – ServiceNow: run the post-install script](#step-2--servicenow-run-the-post-install-script)
+   * [Step 2 – ServiceNow: set your Dynamics 365 address](#step-2--servicenow-set-your-dynamics-365-address)
    * [Step 3 – ServiceNow: create the integration user](#step-3--servicenow-create-the-integration-user)
    * [Step 4 – Dynamics 365: import the solution](#step-4--dynamics-365-import-the-solution)
    * [Step 5 – Dynamics 365: connect and turn the flows on](#step-5--dynamics-365-connect-and-turn-the-flows-on)
@@ -64,8 +64,8 @@ Calls reach ServiceNow by themselves: when an agent accepts a voice call in Dyna
 
 | Folder / file | What it is |
 |---|---|
-| [`servicenow/package/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.0.0.xml`](servicenow/package) | **ServiceNow update set**: table `u_cc_call`, Case fields, Script Includes, Business Rules, UI Page and Actions, REST API, system properties and the post-install Fix Script. |
-| [`servicenow/package/post-install-fix-script.js`](servicenow/package/post-install-fix-script.js) | Readable copy of the Fix Script that is already inside the update set. |
+| [`servicenow/package/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.0.1.xml`](servicenow/package) | **ServiceNow update set**, the whole ServiceNow side in one file: table `u_cc_call` and its fields, Case fields, Script Includes, Business Rules, UI Page and Actions, the Case button and call picker, form layouts, related lists, softphone (OpenFrame) configuration, the REST API and the system properties. |
+| [`servicenow/package/post-install-fix-script.js`](servicenow/package/post-install-fix-script.js) | Optional repair script (also inside the update set): re-creates the form layout, related lists and softphone, and gives you the softphone role. You do not need it after a normal install. |
 | [`dynamics365/D365ContactCenter_ServiceNow_CallJourney_1_0_0_0.zip`](dynamics365) | **Dynamics 365 solution** (unmanaged): the two Power Automate flows, a connection reference and three environment variables for the ServiceNow address and login. No credentials inside. |
 | `servicenow/src/`, `deploy/` | Source of everything above and a scripted installer (see [Alternative: scripted install](#alternative-scripted-install)). |
 | `docs/images/` | Screenshots used in this README. |
@@ -92,27 +92,28 @@ You need:
 
 ### Step 1 – ServiceNow: import the update set
 
-1. Download [`D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.0.0.xml`](servicenow/package/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.0.0.xml) (use the **Download raw file** button on GitHub).
+1. Download [`D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.0.1.xml`](servicenow/package/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.0.1.xml) (use the **Download raw file** button on GitHub).
 2. In ServiceNow open **System Update Sets → Retrieved Update Sets** and click **Import Update Set from XML**.
-3. Choose the file and click **Upload**. The update set **D365 Contact Center - Call Journey 1.0.0** appears with state *Loaded*.
+3. Choose the file and click **Upload**. The update set **D365 Contact Center - Call Journey 1.0.1** appears with state *Loaded*.
 4. Open it and click **Preview Update Set**. Wait until the state is *Previewed*. There should be **0 problems**.
 5. Click **Commit Update Set**.
 
-### Step 2 – ServiceNow: run the post-install script
+### Step 2 – ServiceNow: set your Dynamics 365 address
 
-The update set cannot carry form layouts, related lists and the softphone reliably, so a Fix Script does it. It is safe to run any number of times.
+Everything else (table, buttons, form layout, related lists, softphone) arrived with the update set. You only tell it where your Dynamics 365 is.
 
-1. In **System Properties** (type `sys_properties.list` in the navigator) set:
+In **System Properties** (type `sys_properties.list` in the navigator) set:
 
-   | Property | Value |
-   |---|---|
-   | `d365cc.org_url` | Your Dynamics 365 URL, for example `https://contoso.crm.dynamics.com` |
-   | `d365cc.app_id` | *(optional)* The id of the Contact Center app in your environment |
-   | `d365cc.time_zone` | IANA time zone used in call titles, for example `America/New_York` |
-   | `d365cc.time_zone_label` | Short label shown in call titles, for example `ET` |
+| Property | Value |
+|---|---|
+| `d365cc.org_url` | Your Dynamics 365 URL, for example `https://contoso.crm.dynamics.com` |
+| `d365cc.app_id` | *(optional)* The id of the Contact Center app in your environment |
+| `d365cc.time_zone` | IANA time zone used in call titles, for example `America/New_York` |
+| `d365cc.time_zone_label` | Short label shown in call titles, for example `ET` |
 
-2. Open **System Definition → Fix Scripts**, open **D365CC - Post-install configuration** and click **Run Fix Script**.
-3. The output lists what it did: form layouts in place, related lists added, softphone configured. If it says `ACTION NEEDED: set system property d365cc.org_url`, go back to step 1 and run it again.
+Saving `d365cc.org_url` also points the **softphone** (OpenFrame configuration *Dynamics 365 Contact Center*) at your environment, automatically.
+
+> If something looks incomplete, you can run the optional repair script: **System Definition → Fix Scripts → D365CC - Post-install configuration → Run Fix Script**. It is safe to run any number of times.
 
 ### Step 3 – ServiceNow: create the integration user
 
@@ -154,9 +155,9 @@ The solution contains two flows:
 
 ### Step 6 – Softphone in the ServiceNow Workspace
 
-The Fix Script in step 2 created the OpenFrame configuration **Dynamics 365 Contact Center** and gave it to you. For every other agent:
+The update set created the OpenFrame configuration **Dynamics 365 Contact Center** and step 2 pointed it at your environment. Give every agent who should see the softphone:
 
-1. Give the role **`sn_openframe_user`**.
+1. The role **`sn_openframe_user`** (User Administration → Users → the user → Roles).
 2. *(Optional)* In the Copilot Service admin center → *your default contact center* → **Conversation widget**, copy the **Embeddable conversation widget URL** and paste it in **OpenFrame → Configurations → Dynamics 365 Contact Center → URL**. The default URL is built from `d365cc.org_url`.
 
 The softphone icon then appears in the top bar of the Workspace.
@@ -193,8 +194,8 @@ To send a past call again without placing a new one, use the [replay script](#al
 | Click **Open call journey** and nothing opens | The call record was deleted, or the Workspace tab was reloaded just before. Reload the Case and try again. |
 | The Activity link opens a tab that closes by itself | By design: ServiceNow does not let the Activity stream run scripts, so a short hand-off page asks the Workspace to open the call as a sub tab. The **Open call journey** button on the Case does not do this. |
 | **Recording & transcript** pop-up stays blank or asks to sign in | Sign in to Dynamics 365 in the same browser, and allow third-party cookies for `*.dynamics.com`. Check `d365cc.org_url` has no trailing text. |
-| No softphone icon | The user needs the role `sn_openframe_user`; check **OpenFrame → Configurations** and that `d365cc.org_url` is set, then run the Fix Script again. |
-| Call journey card or form looks empty | Run the Fix Script again (step 2). |
+| No softphone icon | The user needs the role `sn_openframe_user`; check **OpenFrame → Configurations** that *Dynamics 365 Contact Center* is active and `d365cc.org_url` is set. |
+| Call record form is missing the journey card or the related lists | Run the optional repair script (see step 2). |
 | Dynamics 365 widget keeps crashing in the browser | Very large numbers of unread notifications in Dynamics 365 can exhaust the browser: delete old `appnotification` records. |
 
 ## Alternative: scripted install
@@ -203,7 +204,7 @@ If you prefer scripts to the packages (or want to change the code), requires **N
 
 ```powershell
 copy .env.example .env.local     # fill in your instance, admin login and Dynamics 365 URL
-node deploy/deploy.mjs           # schema, logic, UI, softphone, REST API, open-call hand-off
+node deploy/deploy.mjs           # schema, logic, UI, softphone, REST API, call picker, open-call hand-off
 ```
 
 | Step | Script | Does |
