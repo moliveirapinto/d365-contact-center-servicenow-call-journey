@@ -1,4 +1,5 @@
 import { api, find, upsert, readSrc, log } from '../lib.mjs';
+import { CASE_OPEN } from './06-play.mjs';
 
 const CALL = 'u_cc_call';
 const CASE = 'sn_customerservice_case';
@@ -24,15 +25,6 @@ const WORKSPACE_CLICK = (title, param) => `function onClick(g_form) {
 // Shown on a Case whenever any call is linked to it (not only the one the IVR stamped on the Case).
 const CASE_HAS_CALLS = "(function () { var g = new GlideAggregate('u_cc_call'); g.addQuery('u_case', current.getUniqueValue()); g.addAggregate('COUNT'); g.query(); return g.next() && parseInt(g.getAggregate('COUNT'), 10) > 0; })()";
 
-const CASE_OPEN = `function onClick(g_form) {
-    var ga = new GlideAjax('D365CCPlay');
-    ga.addParam('sysparm_name', 'latestCall');
-    ga.addParam('sysparm_case', g_form.getUniqueValue());
-    ga.getXMLAnswer(function (callId) {
-        if (callId) g_aw.openRecord('u_cc_call', callId);
-        else g_form.addInfoMessage('This case has no calls yet.');
-    });
-}`;
 
 async function uiAction({ table, name, title, order, condition, workspaceScript }) {
     const param = PARAM[table];
