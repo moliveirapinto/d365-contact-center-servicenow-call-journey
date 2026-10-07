@@ -18,6 +18,14 @@ D365CCPlay.prototype = Object.extendsObject(global.AbstractAjaxProcessor, {
         if (p.length !== 3 || (new GlideDateTime().getNumericValue() - parseInt(p[2], 10)) > 120000) return '';
         return p[0] + '|' + p[1];
     },
+    latestCall: function () {
+        var gr = new GlideRecord('u_cc_call');
+        gr.addQuery('u_case', this.getParameter('sysparm_case'));
+        gr.orderByDesc('u_call_received');
+        gr.setLimit(1);
+        gr.query();
+        return gr.next() ? gr.getUniqueValue() : '';
+    },
     type: 'D365CCPlay'
 });`;
 
@@ -64,7 +72,23 @@ const CLIENT = `function onLoad() {
     });
 }`;
 
+const OPEN_JOURNEY = `function onClick(g_form) {
+    var ga = new GlideAjax('D365CCPlay');
+    ga.addParam('sysparm_name', 'latestCall');
+    ga.addParam('sysparm_case', g_form.getUniqueValue());
+    ga.getXMLAnswer(function (callId) {
+        if (callId) g_aw.openRecord('u_cc_call', callId);
+        else g_form.addInfoMessage('This case has no calls yet.');
+    });
+}`;
+
 export default async function play() {
+    await upsert('sys_ui_action', 'name=Open call journey^table=sn_customerservice_case', {
+        name: 'Open call journey', table: 'sn_customerservice_case', action_name: 'open_call_journey', active: 'true',
+        client: 'true', form_button: 'true', form_button_v2: 'true', format_for_configurable_workspace: 'true',
+        isolate_script: 'true', show_insert: 'false', show_update: 'true', order: '390', onclick: '', script: '',
+        client_script_v2: OPEN_JOURNEY, hint: 'Open the call journey in a sub tab'
+    });
     await upsert('sys_script_include', 'name=D365CCPlay', {
         name: 'D365CCPlay', api_name: 'global.D365CCPlay', script: AJAX, active: 'true', access: 'public',
         client_callable: 'true', description: 'One-time hand-off that lets journey-card buttons open the recording modal.'

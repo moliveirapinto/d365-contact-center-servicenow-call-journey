@@ -24,7 +24,7 @@ const definition = {
         $authentication: { defaultValue: {}, type: 'SecureObject' }
     },
     triggers: {
-        When_an_agent_accepts_a_voice_call: {
+        When_an_agent_is_assigned_to_a_voice_call: {
             type: 'OpenApiConnectionWebhook',
             inputs: {
                 host: { ...CDS, operationId: 'SubscribeWebhookTrigger' },
@@ -32,8 +32,8 @@ const definition = {
                     'subscriptionRequest/message': 3,
                     'subscriptionRequest/entityname': 'msdyn_ocliveworkitem',
                     'subscriptionRequest/scope': 4,
-                    'subscriptionRequest/filteringattributes': 'statuscode,msdyn_isagentaccepted',
-                    'subscriptionRequest/filterexpression': '(statuscode eq 2 and msdyn_channel eq 192440000)'
+                    'subscriptionRequest/filteringattributes': 'msdyn_activeagentassignedon',
+                    'subscriptionRequest/filterexpression': '(msdyn_channel eq 192440000)'
                 },
                 authentication: "@parameters('$authentication')"
             }
