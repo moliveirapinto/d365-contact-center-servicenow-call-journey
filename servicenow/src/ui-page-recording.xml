@@ -31,6 +31,7 @@
     #d365-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #5f6b7a; font-size: 14px; }
     .footer { position: absolute; left: 0; right: 0; bottom: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-top: 1px solid #d8dde6; background: #fff; font-size: 13px; }
     .footer a { color: #1b6ac9; text-decoration: none; }
+    .btn-response-time, #response_time_icon, .response-time-btn { display: none !important; }
     .msg { padding: 24px; color: #5f6b7a; font-size: 14px; }
 </style>
 <div id="calls-data" data-calls="${HTML:jvar_calls}" style="display:none"></div>
