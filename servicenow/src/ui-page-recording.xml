@@ -27,7 +27,7 @@
     .tab { padding: 6px 12px; border: 1px solid #d8dde6; border-radius: 16px; background: #f8f9fb; font-size: 13px; cursor: pointer; white-space: nowrap; }
     .tab.on { background: #1b6ac9; border-color: #1b6ac9; color: #fff; }
     .wrap { position: absolute; left: 0; right: 0; bottom: 40px; background: #f4f6fa; }
-    #d365-frame { width: 125%; height: 125%; zoom: 0.8; border: 0; background: #fff; }
+    #d365-frame { width: 100%; height: 100%; border: 0; background: #fff; }
     #d365-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #5f6b7a; font-size: 14px; }
     .footer { position: absolute; left: 0; right: 0; bottom: 0; height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-top: 1px solid #d8dde6; background: #fff; font-size: 13px; }
     .footer a { color: #1b6ac9; text-decoration: none; }

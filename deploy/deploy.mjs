@@ -7,7 +7,8 @@ const steps = [
     ['03-ui', './steps/03-ui.mjs'],
     ['04-security', './steps/04-security.mjs'],
     ['05-rest', './steps/05-rest.mjs'],
-    ['06-play', './steps/06-play.mjs']
+    ['06-play', './steps/06-play.mjs'],
+    ['07-open', './steps/07-open.mjs']
 ];
 
 for (const [name, file] of steps) {
