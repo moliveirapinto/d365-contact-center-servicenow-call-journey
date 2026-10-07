@@ -119,9 +119,10 @@ export default async function ui() {
     log('  ui actions ok');
 
     const callLayout = [
+        'u_journey_html',
         '.begin_split', 'u_title', 'u_status', 'u_case', 'u_contact', 'u_direction', 'u_channel', 'u_caller_phone', 'u_called_number',
         '.split', 'u_call_received', 'u_agent_connected', 'u_call_ended', 'u_queue', 'u_agent', 'u_customer_sentiment', 'u_handled_by_virtual_agent',
-        '.end_split', 'u_journey_html'
+        '.end_split'
     ];
     const callDetails = [
         '.begin_split', 'u_total_duration_seconds', 'u_virtual_agent_seconds', 'u_wait_time_seconds',
