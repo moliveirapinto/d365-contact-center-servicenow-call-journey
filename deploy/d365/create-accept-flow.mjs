@@ -1,4 +1,4 @@
-// Builds the D365 -> ServiceNow flow that creates the Case (and the call) the moment an agent accepts a voice call.
+// Builds the D365 -> ServiceNow flow that creates the Case (and the call) shortly after an agent accepts a voice call.
 // Usage: node deploy/d365/create-flow.mjs   (needs D365_TOKEN, SN_INTEGRATION_PASS and .env.local)
 import fs from 'node:fs';
 import { cfg, log } from '../lib.mjs';
@@ -23,78 +23,73 @@ const definition = {
         $connections: { defaultValue: {}, type: 'Object' },
         $authentication: { defaultValue: {}, type: 'SecureObject' }
     },
+    // Polling (every minute) instead of a row trigger: the platform assigns the agent without raising an event the
+    // trigger reliably sees, and ServiceNow ignores calls it already has.
     triggers: {
-        When_an_agent_is_assigned_to_a_voice_call: {
-            type: 'OpenApiConnectionWebhook',
-            inputs: {
-                host: { ...CDS, operationId: 'SubscribeWebhookTrigger' },
-                parameters: {
-                    'subscriptionRequest/message': 3,
-                    'subscriptionRequest/entityname': 'msdyn_ocliveworkitem',
-                    'subscriptionRequest/scope': 4,
-                    'subscriptionRequest/filteringattributes': 'statuscode,msdyn_activeagentassignedon,msdyn_isagentaccepted',
-                },
-                authentication: "@parameters('$authentication')"
-            }
+        Every_minute: {
+            type: 'Recurrence',
+            recurrence: { frequency: 'Minute', interval: 1 }
         }
     },
     actions: {
-        Get_conversation: {
+        List_accepted_voice_calls: {
             runAfter: {},
-            type: 'OpenApiConnection',
-            inputs: {
-                host: { ...CDS, operationId: 'GetItem' },
-                parameters: {
-                    entityName: 'msdyn_ocliveworkitems',
-                    recordId: "@triggerOutputs()?['body/activityid']",
-                    $select: 'msdyn_channel,subject,msdyn_createdon,msdyn_activeagentassignedon,msdyn_channelconnectionid,msdyn_copilotengaged,_msdyn_customer_value,_msdyn_cdsqueueid_value,_msdyn_activeagentid_value'
-                },
-                authentication: "@parameters('$authentication')"
-            }
-        },
-        Get_customer: {
-            runAfter: { Get_conversation: ['Succeeded'] },
             type: 'OpenApiConnection',
             inputs: {
                 host: { ...CDS, operationId: 'ListRecords' },
                 parameters: {
-                    entityName: 'contacts',
-                    $select: 'fullname,mobilephone,telephone1,emailaddress1',
-                    $filter: "contactid eq '@{coalesce(body('Get_conversation')?['_msdyn_customer_value'], '00000000-0000-0000-0000-000000000000')}'",
-                    $top: 1
+                    entityName: 'msdyn_ocliveworkitems',
+                    $select: 'subject,msdyn_createdon,msdyn_activeagentassignedon,msdyn_channelconnectionid,msdyn_copilotengaged,_msdyn_customer_value,_msdyn_cdsqueueid_value,_msdyn_activeagentid_value',
+                    $filter: "statecode eq 0 and msdyn_channel eq '192440000' and msdyn_activeagentassignedon ne null and createdon ge @{addHours(utcNow(), -3)}",
+                    $top: 20
                 },
                 authentication: "@parameters('$authentication')"
             }
         },
-        Build_ServiceNow_payload: {
-            runAfter: { Get_customer: ['Succeeded', 'Failed'] },
-            type: 'Compose',
-            inputs: {
-                conversation_id: "@triggerOutputs()?['body/activityid']",
-                create_case: true,
-                d365_channel: "@string(body('Get_conversation')?['msdyn_channel'])",
-                status: 'In progress',
-                subject: "@body('Get_conversation')?['subject']",
-                call_received: "@body('Get_conversation')?['msdyn_createdon']",
-                agent_connected: "@body('Get_conversation')?['msdyn_activeagentassignedon']",
-                queue: "@body('Get_conversation')?['_msdyn_cdsqueueid_value@OData.Community.Display.V1.FormattedValue']",
-                agent: "@body('Get_conversation')?['_msdyn_activeagentid_value@OData.Community.Display.V1.FormattedValue']",
-                handled_by_virtual_agent: "@equals(body('Get_conversation')?['msdyn_copilotengaged'], true)",
-                called_number: "@body('Get_conversation')?['msdyn_channelconnectionid']",
-                contact_name: "@first(body('Get_customer')?['value'])?['fullname']",
-                contact_email: "@first(body('Get_customer')?['value'])?['emailaddress1']",
-                caller_phone: "@coalesce(first(body('Get_customer')?['value'])?['mobilephone'], first(body('Get_customer')?['value'])?['telephone1'])"
-            }
-        },
-        Create_ServiceNow_case_and_call: {
-            runAfter: { Build_ServiceNow_payload: ['Succeeded'] },
-            type: 'Http',
-            inputs: {
-                method: 'POST',
-                uri: `https://${cfg.instance}/api/global/d365cc/call`,
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-                body: "@outputs('Build_ServiceNow_payload')",
-                authentication: { type: 'Basic', username: process.env.SN_INTEGRATION_USER || 'd365cc.integration', password: process.env.SN_INTEGRATION_PASS }
+        For_each_call: {
+            runAfter: { List_accepted_voice_calls: ['Succeeded'] },
+            type: 'Foreach',
+            foreach: "@outputs('List_accepted_voice_calls')?['body/value']",
+            actions: {
+                Get_customer: {
+                    runAfter: {},
+                    type: 'OpenApiConnection',
+                    inputs: {
+                        host: { ...CDS, operationId: 'ListRecords' },
+                        parameters: {
+                            entityName: 'contacts',
+                            $select: 'fullname,mobilephone,telephone1,emailaddress1',
+                            $filter: "contactid eq '@{coalesce(items('For_each_call')?['_msdyn_customer_value'], '00000000-0000-0000-0000-000000000000')}'",
+                            $top: 1
+                        },
+                        authentication: "@parameters('$authentication')"
+                    }
+                },
+                Create_ServiceNow_case_and_call: {
+                    runAfter: { Get_customer: ['Succeeded', 'Failed'] },
+                    type: 'Http',
+                    inputs: {
+                        method: 'POST',
+                        uri: `https://${cfg.instance}/api/global/d365cc/call`,
+                        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                        body: {
+                            conversation_id: "@items('For_each_call')?['activityid']",
+                            create_case: true,
+                            status: 'In progress',
+                            subject: "@items('For_each_call')?['subject']",
+                            call_received: "@items('For_each_call')?['msdyn_createdon']",
+                            agent_connected: "@items('For_each_call')?['msdyn_activeagentassignedon']",
+                            queue: "@items('For_each_call')?['_msdyn_cdsqueueid_value@OData.Community.Display.V1.FormattedValue']",
+                            agent: "@items('For_each_call')?['_msdyn_activeagentid_value@OData.Community.Display.V1.FormattedValue']",
+                            handled_by_virtual_agent: "@equals(items('For_each_call')?['msdyn_copilotengaged'], true)",
+                            called_number: "@items('For_each_call')?['msdyn_channelconnectionid']",
+                            contact_name: "@first(body('Get_customer')?['value'])?['fullname']",
+                            contact_email: "@first(body('Get_customer')?['value'])?['emailaddress1']",
+                            caller_phone: "@coalesce(first(body('Get_customer')?['value'])?['mobilephone'], first(body('Get_customer')?['value'])?['telephone1'])"
+                        },
+                        authentication: { type: 'Basic', username: process.env.SN_INTEGRATION_USER || 'd365cc.integration', password: process.env.SN_INTEGRATION_PASS }
+                    }
+                }
             }
         }
     },
@@ -120,7 +115,7 @@ const base = `${org}/api/data/v9.2`;
 const existing = await (await fetch(`${base}/workflows?$select=workflowid,statecode&$filter=name eq '${FLOW_NAME}'`, { headers: H })).json();
 const body = {
     name: FLOW_NAME, category: 5, type: 1, primaryentity: 'none', clientdata: JSON.stringify(clientdata),
-    description: 'Creates the ServiceNow Case and Contact Center Call when an agent accepts a voice call.'
+    description: 'Every minute, creates the ServiceNow Case and Contact Center Call for voice calls an agent has accepted.'
 };
 let id;
 if (existing.value?.length) {
