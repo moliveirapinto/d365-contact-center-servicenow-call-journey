@@ -27,7 +27,7 @@ This is the ServiceNow port of the [Salesforce Call Journey](https://github.com/
 
 1. [What you get](#what-you-get)
 2. [What is in this repository](#what-is-in-this-repository)
-3. [Before you start](#before-you-start) (including how to get a free ServiceNow instance)
+3. [Before you start](#before-you-start) (including how to get a free ServiceNow instance and how to install the connector)
 4. [Let an AI assistant install it for you](#let-an-ai-assistant-install-it-for-you)
 5. [Install, step by step](#install-step-by-step)
    * [Step 1 – ServiceNow: import the update set](#step-1--servicenow-import-the-update-set)
@@ -110,9 +110,95 @@ Whichever you choose:
 - ServiceNow changes these sign-up pages from time to time. If a link has moved, search for *"ServiceNow Developer Program personal developer instance"*.
 ---
 
+### Need help installing the ServiceNow connector?
+
+The call journey in this repo assumes the **Dynamics 365 Contact Center panel (the softphone) already opens inside the ServiceNow Workspace**. This is done with ServiceNow **OpenFrame**. If you don't have it yet, an AI assistant can set it up, including the Dynamics 365 side that makes it work. Paste the prompt below into **Claude** (with browser or computer use), **Claude Code**, or a similar agent.
+
+It sets up:
+
+1. **OpenFrame** in ServiceNow (activates the plugin if needed),
+2. the **OpenFrame configuration** "Dynamics 365 Contact Center" that points to the Dynamics 365 widget,
+3. the **role** `sn_openframe_user` for the people who need the panel,
+4. the **Dynamics 365 side**: Contact Center and voice channel, agent licenses and roles, the widget address, and the content security policy that lets ServiceNow show Dynamics 365,
+5. a final **check** that the panel loads and signs in.
+
+> ✅ **Nothing to edit.** Paste the prompt exactly as it is. It starts by **asking you** for your ServiceNow instance address, your Dynamics 365 environment URL and who needs the panel. Anything in `<angle brackets>` is filled in by the assistant. You sign in yourself, including MFA, and never type a password into the chat.
+
+````text
+You are a ServiceNow and Dynamics 365 installation engineer. Set up the "Dynamics 365 Contact Center" softphone panel in MY ServiceNow instance using ServiceNow OpenFrame, and make sure the Dynamics 365 side is ready for it. Work carefully, change only what is listed, and verify every step.
+
+REFERENCE
+- This repository's README (https://raw.githubusercontent.com/moliveirapinto/d365-contact-center-servicenow-call-journey/main/README.md) is context only.
+- Microsoft's documentation is the source of truth for the connector. Search Microsoft Learn for "Dynamics 365 Contact Center embed conversation widget ServiceNow OpenFrame" and ServiceNow's documentation for "OpenFrame configuration". If this prompt disagrees with current documentation, follow the documentation, tell me what differs, and continue.
+- Values this install uses (tested and working):
+  * OpenFrame configuration (table sn_openframe_configuration): Name "Dynamics 365 Contact Center"; Title "Dynamics 365 Contact Center"; Subtitle "Voice and messaging"; URL https://ccaas-embed-prod.azureedge.net/widget/index.html?dynamicsUrl=<MY D365 URL, no trailing slash>; Width 400; Height 700; Order 100; Active true; Default true; Show presence indicator false; Collapsed view enabled false; Enforce sandbox restrictions false.
+  * Role to give each user: sn_openframe_user.
+
+HOW TO WORK
+- Use the tools you have (browser, shell). If you cannot operate a browser, switch to GUIDE MODE: give me ONE step at a time with exact click paths, wait for me to say "done", and verify what I report before moving on.
+- Never guess. If a screen or value differs from this prompt, STOP and tell me exactly what you see.
+- Retry a failed action at most twice, then stop and show me the exact error.
+- I sign in myself, including MFA. Never ask me to paste passwords or tokens in this chat and never store any. Do your ServiceNow checks inside my signed-in browser session (for example open /api/now/table/... URLs as GET requests, or use the list views).
+- Do not delete or change anything that is not listed here. Never touch a different ServiceNow instance or Dynamics 365 environment.
+- After each step give a one-line status: OK / WARNING / FAILED.
+
+STEP 0 - QUESTIONS (ask all in one message, then wait)
+1. ServiceNow instance host name (for example dev12345.service-now.com). Is it a non-production instance? If production, warn me and continue only after I answer "yes, production".
+2. My Dynamics 365 Contact Center environment URL (for example https://contoso.crm.dynamics.com). Use it exactly as given, without a trailing slash and without a path.
+3. Which ServiceNow users (user names or e-mails) must see the panel? Which Dynamics 365 agents will use it?
+4. Confirm I can sign in as: (a) a ServiceNow administrator (role admin), (b) a Dynamics 365 / Power Platform administrator for the environment above, (c) a Dynamics 365 Contact Center agent (to test the sign-in at the end).
+5. Does my instance have Customer Service Management and the CSM/FSM Configurable Workspace (open https://<host>/now/cwf/agent/home)? If you can check it yourself, do so and tell me instead of asking.
+
+STEP 1 - PREFLIGHT (read-only; tell me before changing anything)
+1. Sign in to the instance in the browser (I complete it).
+2. OpenFrame plugin: All > System Definition > Plugins, search "OpenFrame". Also check that https://<host>/api/now/table/sn_openframe_configuration?sysparm_limit=5 answers with JSON (a "Table not found" or 404 error means OpenFrame is not active) and that the role exists: https://<host>/api/now/table/sys_user_role?sysparm_query=name=sn_openframe_user.
+3. Existing configuration: list https://<host>/api/now/table/sn_openframe_configuration?sysparm_fields=sys_id,name,url,active. If a record named "Dynamics 365 Contact Center" already exists (the call journey package of this repo creates the same one), STOP and ask me whether to update it. Never create a second one with the same name.
+4. Workspace: https://<host>/now/cwf/agent/home must open the Customer Service Workspace.
+
+STEP 2 - ACTIVATE OPENFRAME (only if STEP 1 showed it inactive)
+All > System Applications > All Available Applications > All, or System Definition > Plugins: search "OpenFrame", open it, click Activate/Install and wait until it finishes (it can take several minutes; do not click twice). Ask me to confirm before activating on a production instance. Repeat the checks of STEP 1.2 and report.
+
+STEP 3 - OPENFRAME CONFIGURATION
+1. Navigate: All > OpenFrame > Configurations (or type sn_openframe_configuration.list in the filter navigator). Click New.
+2. Fill the fields from "Values this install uses" above, with my Dynamics 365 URL in the URL. Keep the name EXACTLY "Dynamics 365 Contact Center" so the call journey package updates this record instead of creating a duplicate. Submit.
+3. VERIFY: reload the list; exactly one record with that name, Active true, and the URL ends with dynamicsUrl=<my D365 URL>. Show me the URL.
+
+STEP 4 - ROLE FOR USERS
+Give the role sn_openframe_user to every user I named: User Administration > Users > the user > Roles tab > Edit > add the role > Save. VERIFY with https://<host>/api/now/table/sys_user_has_role?sysparm_query=role.name=sn_openframe_user&sysparm_fields=user.user_name and compare to my list.
+
+STEP 5 - DYNAMICS 365 SIDE (the panel only works if this is in place; check each item and report)
+Sign-in: ask me to sign in at https://admin.powerplatform.microsoft.com with a Dynamics 365 / Power Platform administrator account, and use the environment I named. Menu names change between releases; if a name differs, search for it and tell me what you found.
+1. Contact Center is installed and has a voice channel. Power Platform admin center > Environments > my environment > Resources > Dynamics 365 apps: "Dynamics 365 Contact Center" (and the "Copilot Service admin center" app) must be installed. Open the Copilot Service admin center and confirm a voice workstream/channel exists (phone number or Azure Communication Services resource). If not, STOP: the connector cannot work without Contact Center and a voice channel, and setting that up is a separate Microsoft guide (Learn: "Set up Dynamics 365 Contact Center"); tell me.
+2. Agents. Every person who will use the panel needs (a) a Dynamics 365 Contact Center (or Customer Service Enterprise + Omnichannel) license, (b) a Dynamics 365 user in this environment with the security role "Omnichannel agent" (or "Customer Service Representative"), and (c) membership in a queue/workstream that receives voice calls. Check each user I listed in Step 0 and report what is missing. Do not change roles or licenses without my "yes".
+3. Widget address. In the Copilot Service admin center open my default contact center, find the "Conversation widget" setting and read the "Embeddable conversation widget URL". Compare it with the address used in this install (https://ccaas-embed-prod.azureedge.net/widget/index.html?dynamicsUrl=<my D365 URL>). If Microsoft's current URL is different, use Microsoft's URL in the OpenFrame configuration URL (STEP 3) and tell me what differs. If the setting does not exist in my environment, tell me and continue with the address above.
+4. Allow ServiceNow to frame Dynamics 365 (needed for the Recording & transcript pop-up). Power Platform admin center > Environments > my environment > Settings > Product > Privacy + Security > Content security policy. If frame-ancestors is enforced (not "report only" and not unrestricted) for model-driven apps, ADD these allowed frame ancestors, keeping the existing ones: https://<my instance host> and https://*.service-now.com (and my custom ServiceNow domain if I use one). If the policy is not enforced, nothing is needed: note that. Show me the exact list before saving.
+5. Browser. The agent signs in to Dynamics 365 inside the panel, in a pop-up. Pop-ups and third-party cookies must be allowed for my ServiceNow host, [*.]dynamics.com, [*.]microsoftonline.com and [*.]azureedge.net (Edge: Settings > Cookies and site permissions; Chrome: Settings > Privacy and security > Third-party cookies > Sites that can always use cookies). If my company manages the browser by policy, tell me to ask IT.
+6. Production caution: none of the items above change live calls, but the frame-ancestors change affects who can embed Dynamics 365. Say so and get my "yes" before saving it in a production environment.
+
+STEP 6 - FIRST LOAD AND CHECK
+1. Tell me to hard-refresh the Workspace (Ctrl+Shift+R) at https://<host>/now/cwf/agent/home. A softphone/headset icon appears in the top bar.
+2. Click it. Expected: a 400 x 700 panel with the Dynamics 365 widget that says it is signing in, and a Microsoft sign-in pop-up. I sign in with my Dynamics 365 agent account. Afterwards the panel shows the agent presence controls.
+3. No icon: the user lacks sn_openframe_user (STEP 4), the configuration is not Active (STEP 3), or the page was not refreshed.
+4. Panel blank, blocked or "refused to connect": open the browser console. If it says it refused to frame https://ccaas-embed-prod.azureedge.net, ServiceNow's Content Security Policy blocks it: search the filter navigator for "Content Security" / "CSP", find the allow list (frame-src / frame-ancestors) and show me what you would add (https://ccaas-embed-prod.azureedge.net). Wait for my "yes" before changing it. If you cannot find such a setting, STOP and tell me what the console says.
+5. Pop-up blocked or sign-in loops: allow pop-ups and third-party cookies as in STEP 5.5, and retry in a normal (not private) window.
+6. HTTP 400 "Request Too Long": clear the cookies for dynamics.com and microsoftonline.com and retry.
+
+STEP 7 - FINAL REPORT
+Give me a table: item (OpenFrame plugin, configuration, roles, Dynamics 365 side, first load) / status (OK, WARNING, FAILED) / what you saw. List exactly what you changed and how to undo it (deactivate the configuration, remove the role from the users, remove any frame-ancestors/CSP entries you added). Then tell me the next step: install the call journey package from this README ("Let an AI assistant install the call journey for you").
+
+START with STEP 0.
+````
+
+### What this prompt cannot do for you
+
+- It cannot sign in for you or accept the Microsoft sign-in pop-up.
+- Buying and assigning Dynamics 365 Contact Center licenses and creating the voice channel are done in Microsoft 365 / Dynamics 365; the prompt checks them and tells you what is missing.
+- If your company blocks third-party cookies or pop-ups by policy, your IT team has to allow them for the domains listed in STEP 5.
+
+
 ## Let an AI assistant install it for you
 
-Copy the whole prompt below into an AI assistant that can work in a browser and/or run commands (for example **Claude** with computer or browser use, **Claude Code**, or a similar agent). It will ask you a few questions, install both packages, check every step, and report back. If your assistant cannot operate a browser, the prompt switches it to a guided mode where it walks you through each click.
+This is the third step, after you have a ServiceNow instance and the Dynamics 365 panel works inside it (see the two sections above). Copy the whole prompt below into an AI assistant that can work in a browser and/or run commands (for example **Claude** with computer or browser use, **Claude Code**, or a similar agent). It will ask you a few questions, install both packages, check every step, and report back. If your assistant cannot operate a browser, the prompt switches it to a guided mode where it walks you through each click.
 
 **You stay in control:** you sign in yourself (including MFA), and the assistant stops and asks whenever something is not as expected.
 
@@ -170,6 +256,7 @@ PHASE 4 - INTEGRATION USER
 
 PHASE 5 - DYNAMICS 365
 1. Open https://make.powerapps.com, ask me to sign in, and select the environment I named. Confirm it is the Contact Center environment: it must have the table "Conversation" (logical name msdyn_ocliveworkitem). If not, STOP.
+   Also check the content security policy that lets ServiceNow show Dynamics 365 in the Recording & transcript pop-up: Power Platform admin center > Environments > my environment > Settings > Product > Privacy + Security > Content security policy. If frame-ancestors is enforced, it must allow https://<my instance host> (or https://*.service-now.com). Show me the list and ask before adding it. If it is not enforced, nothing is needed. The panel itself (softphone) is covered by the section "Need help installing the ServiceNow connector?"; if the softphone icon does not open, use that prompt first.
 2. Solutions > Import solution > upload file B > Next.
 3. On the connections page, create or select a Microsoft Dataverse connection for "D365 Contact Center - Dataverse" (I sign in if asked).
 4. Fill the three environment variables: "ServiceNow Instance" = the host name only (no https://); "ServiceNow User" = d365cc.integration; "ServiceNow Password" = the generated password.
