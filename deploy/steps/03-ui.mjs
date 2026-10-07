@@ -1,5 +1,4 @@
 import { api, find, upsert, readSrc, log } from '../lib.mjs';
-import { CASE_OPEN } from './06-play.mjs';
 
 const CALL = 'u_cc_call';
 const CASE = 'sn_customerservice_case';
@@ -21,9 +20,6 @@ const WORKSPACE_CLICK = (title, param) => `function onClick(g_form) {
         size: 'lg'
     });
 }`;
-
-// Shown on a Case whenever any call is linked to it (not only the one the IVR stamped on the Case).
-const CASE_HAS_CALLS = "(function () { var g = new GlideAggregate('u_cc_call'); g.addQuery('u_case', current.getUniqueValue()); g.addAggregate('COUNT'); g.query(); return g.next() && parseInt(g.getAggregate('COUNT'), 10) > 0; })()";
 
 
 async function uiAction({ table, name, title, order, condition, workspaceScript }) {
@@ -116,10 +112,9 @@ export default async function ui() {
         if (a) await api('DELETE', `/api/now/table/sys_ui_action/${a.sys_id}`);
     }
     await uiAction({ table: CALL, name: 'Recording & transcript', title: 'Call recording and transcript', order: 100 });
-    await uiAction({
-        table: CASE, name: 'Play call recording', title: 'Call recording', order: 400,
-        condition: CASE_HAS_CALLS, workspaceScript: CASE_OPEN
-    });
+    // The case header has one button, Open call journey (06-play); drop the duplicate from earlier deployments.
+    const dup = await find('sys_ui_action', `name=Play call recording^table=${CASE}`);
+    if (dup) await api('DELETE', `/api/now/table/sys_ui_action/${dup.sys_id}`);
     log('  ui actions ok');
 
     const callLayout = [
