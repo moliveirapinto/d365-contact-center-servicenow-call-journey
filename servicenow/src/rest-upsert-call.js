@@ -22,6 +22,7 @@
     gr.query();
 
     // Agent accepted a call that has no Case yet: create it (the IVR normally does this, but not for direct calls).
+    if ((body.create_case === true || body.create_case === 'true') && !gr.hasNext() && (!body.agent_connected || String(body.d365_channel || '192440000') !== '192440000')) return { skipped: 'not an accepted voice call yet' };
     var caseCreated = '';
     if (!gr.hasNext() && (body.create_case === true || body.create_case === 'true')) {
         var existingCase = new GlideRecord('sn_customerservice_case');

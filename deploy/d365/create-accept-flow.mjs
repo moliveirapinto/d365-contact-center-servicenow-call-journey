@@ -32,8 +32,7 @@ const definition = {
                     'subscriptionRequest/message': 3,
                     'subscriptionRequest/entityname': 'msdyn_ocliveworkitem',
                     'subscriptionRequest/scope': 4,
-                    'subscriptionRequest/filteringattributes': 'msdyn_activeagentassignedon',
-                    'subscriptionRequest/filterexpression': '(msdyn_channel eq 192440000)'
+                    'subscriptionRequest/filteringattributes': 'statuscode,msdyn_activeagentassignedon,msdyn_isagentaccepted',
                 },
                 authentication: "@parameters('$authentication')"
             }
@@ -48,7 +47,7 @@ const definition = {
                 parameters: {
                     entityName: 'msdyn_ocliveworkitems',
                     recordId: "@triggerOutputs()?['body/activityid']",
-                    $select: 'subject,msdyn_createdon,msdyn_activeagentassignedon,msdyn_channelconnectionid,msdyn_copilotengaged,_msdyn_customer_value,_msdyn_cdsqueueid_value,_msdyn_activeagentid_value'
+                    $select: 'msdyn_channel,subject,msdyn_createdon,msdyn_activeagentassignedon,msdyn_channelconnectionid,msdyn_copilotengaged,_msdyn_customer_value,_msdyn_cdsqueueid_value,_msdyn_activeagentid_value'
                 },
                 authentication: "@parameters('$authentication')"
             }
@@ -73,10 +72,11 @@ const definition = {
             inputs: {
                 conversation_id: "@triggerOutputs()?['body/activityid']",
                 create_case: true,
+                d365_channel: "@string(body('Get_conversation')?['msdyn_channel'])",
                 status: 'In progress',
                 subject: "@body('Get_conversation')?['subject']",
                 call_received: "@body('Get_conversation')?['msdyn_createdon']",
-                agent_connected: "@coalesce(body('Get_conversation')?['msdyn_activeagentassignedon'], utcNow())",
+                agent_connected: "@body('Get_conversation')?['msdyn_activeagentassignedon']",
                 queue: "@body('Get_conversation')?['_msdyn_cdsqueueid_value@OData.Community.Display.V1.FormattedValue']",
                 agent: "@body('Get_conversation')?['_msdyn_activeagentid_value@OData.Community.Display.V1.FormattedValue']",
                 handled_by_virtual_agent: "@equals(body('Get_conversation')?['msdyn_copilotengaged'], true)",
