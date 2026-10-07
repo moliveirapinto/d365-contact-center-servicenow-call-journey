@@ -77,7 +77,6 @@ const BR_ACTIVITY = `(function executeRule(current, previous) {
     try {
         if (current.u_case.nil()) return;
         var isInsert = current.operation() == 'insert';
-        var linked = isInsert || current.u_case.changes();
         var completed = current.getValue('u_status') == 'Completed' && (isInsert || current.u_status.changes() || current.u_case.changes());
 
         var util = new D365CCUtil();
@@ -98,7 +97,7 @@ const BR_ACTIVITY = `(function executeRule(current, previous) {
             cs.update();
         };
 
-        if (linked) post('created');
+        // One entry per call: posted when the call completes (an in-progress call has no entry yet).
         if (completed) post('completed');
     } catch (e) {
         gs.error('[D365CC] Could not post call to Case activity: ' + e);
