@@ -143,9 +143,8 @@ D365CCJourney.prototype = {
         if (gr.getValue('u_caller_phone')) stats += this.stat('phone', C.brand, 'Caller', this.esc(gr.getValue('u_caller_phone')));
         stats = '<div>' + stats + '</div>';
 
-        var play = '/d365cc_play.do?sysparm_call=' + callId;
-        var actions = url ? '<div style="margin-top:4px;">' + this.button('play', 'Play recording', play, true) + this.button('transcript', 'Transcript', play, false) +
-            (full ? '' : this.button('open', 'Call details', '/now/cwf/agent/record/u_cc_call/' + callId, false)) + '</div>' : '';
+        // Play recording / Transcript live in the form header (they open the pop-up with no reload); a link here would reload the Workspace.
+        var actions = (url && !full) ? '<div style="margin-top:4px;">' + this.button('open', 'Call details', '/now/cwf/agent/record/u_cc_call/' + callId, false) + '</div>' : '';
 
         var html = '<div style="font-family:' + this.FONT + ';color:' + C.text + ';">' + header + timeline + stats + actions + '</div>';
         return html;
