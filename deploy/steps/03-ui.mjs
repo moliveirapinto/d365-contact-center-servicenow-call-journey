@@ -110,8 +110,12 @@ export default async function ui() {
     });
     log('  ui page d365cc_recording ok');
 
-    await uiAction({ table: CALL, name: 'Play recording', title: 'Call recording', order: 100 });
-    await uiAction({ table: CALL, name: 'Transcript', title: 'Call transcript', order: 110 });
+    // One button: the D365 conversation view shows the recording and the transcript together.
+    for (const old of ['Play recording', 'Transcript']) {
+        const a = await find('sys_ui_action', `name=${old}^table=${CALL}`);
+        if (a) await api('DELETE', `/api/now/table/sys_ui_action/${a.sys_id}`);
+    }
+    await uiAction({ table: CALL, name: 'Recording & transcript', title: 'Call recording and transcript', order: 100 });
     await uiAction({
         table: CASE, name: 'Play call recording', title: 'Call recording', order: 400,
         condition: CASE_HAS_CALLS, workspaceScript: CASE_OPEN
