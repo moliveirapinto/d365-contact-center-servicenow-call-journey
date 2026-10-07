@@ -19,7 +19,7 @@ This is the ServiceNow port of the [Salesforce Call Journey](https://github.com/
 
 ---
 
-> **Download the install packages from the [latest release](https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/latest)** (ServiceNow update set + Dynamics 365 solution), then follow [Install, step by step](#install-step-by-step).
+> **Download the install packages from the [latest release](https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/latest)** (ServiceNow update set + Dynamics 365 solution), then follow [Install, step by step](#install-step-by-step), or [let an AI assistant install it for you](#let-an-ai-assistant-install-it-for-you) by pasting one prompt.
 
 ---
 
@@ -28,7 +28,8 @@ This is the ServiceNow port of the [Salesforce Call Journey](https://github.com/
 1. [What you get](#what-you-get)
 2. [What is in this repository](#what-is-in-this-repository)
 3. [Before you start](#before-you-start)
-4. [Install, step by step](#install-step-by-step)
+4. [Let an AI assistant install it for you](#let-an-ai-assistant-install-it-for-you)
+5. [Install, step by step](#install-step-by-step)
    * [Step 1 – ServiceNow: import the update set](#step-1--servicenow-import-the-update-set)
    * [Step 2 – ServiceNow: set your Dynamics 365 address](#step-2--servicenow-set-your-dynamics-365-address)
    * [Step 3 – ServiceNow: create the integration user](#step-3--servicenow-create-the-integration-user)
@@ -36,14 +37,14 @@ This is the ServiceNow port of the [Salesforce Call Journey](https://github.com/
    * [Step 5 – Dynamics 365: connect and turn the flows on](#step-5--dynamics-365-connect-and-turn-the-flows-on)
    * [Step 6 – Softphone in the ServiceNow Workspace](#step-6--softphone-in-the-servicenow-workspace)
    * [Step 7 – Copilot Studio (optional)](#step-7--copilot-studio-optional)
-5. [Test it](#test-it)
-6. [Troubleshooting](#troubleshooting)
-7. [Alternative: scripted install](#alternative-scripted-install)
-8. [How it works](#how-it-works)
-9. [Data model](#data-model)
-10. [Settings](#settings)
-11. [Uninstall](#uninstall)
-12. [Notes and limits](#notes-and-limits)
+6. [Test it](#test-it)
+7. [Troubleshooting](#troubleshooting)
+8. [Alternative: scripted install](#alternative-scripted-install)
+9. [How it works](#how-it-works)
+10. [Data model](#data-model)
+11. [Settings](#settings)
+12. [Uninstall](#uninstall)
+13. [Notes and limits](#notes-and-limits)
 
 ---
 
@@ -88,6 +89,90 @@ You need:
 
 ---
 
+## Let an AI assistant install it for you
+
+Copy the whole prompt below into an AI assistant that can work in a browser and/or run commands (for example **Claude** with computer or browser use, **Claude Code**, or a similar agent). It will ask you a few questions, install both packages, check every step, and report back. If your assistant cannot operate a browser, the prompt switches it to a guided mode where it walks you through each click.
+
+**You stay in control:** you sign in yourself (including MFA), and the assistant stops and asks whenever something is not as expected.
+
+````text
+You are an installation engineer. Install the community package "Dynamics 365 Contact Center x ServiceNow Call Journey" for me, end to end, carefully and safely.
+
+SOURCE
+Repository: https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey
+README (source of truth): https://raw.githubusercontent.com/moliveirapinto/d365-contact-center-servicenow-call-journey/main/README.md
+Release v1.0.1 files:
+  A) ServiceNow update set: https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/download/v1.0.1/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.0.1.xml
+  B) Dynamics 365 solution: https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/download/v1.0.1/D365ContactCenter_ServiceNow_CallJourney_1_0_0_0.zip
+Read the README first. If the README and this prompt disagree, follow the README and tell me. If a newer release exists, use the files the README names and tell me.
+
+HOW TO WORK
+- Use the tools you have (browser, shell, file download). If you cannot operate a browser, switch to GUIDE MODE: give me ONE step at a time with exact click paths, wait for me to say "done", and check what I report before moving on. If you cannot open URLs, ask me to paste the README and download the files myself.
+- Never guess. If a screen, value or count differs from what this prompt says, STOP and tell me exactly what you see.
+- Retry a failed action at most twice. Then stop and show me the exact error.
+- Only do what is listed here. Do not delete or change any other record, setting, flow or solution.
+- Sign-in: I sign in myself, including MFA. Tell me when you need it, then wait. Do not ask me to paste my own password or tokens into this chat.
+- The only secret you create is the password of the ServiceNow integration user. Generate it (24+ characters, letters, digits and symbols, no quotes or backslashes), use it only in the two places named below, and never write it to a file, log, screenshot, commit or message. At the end tell me where it lives.
+- After each phase give me one or two lines of status (OK / WARNING / FAILED) before you continue.
+
+PHASE 0 - QUESTIONS (ask all in one message, then wait)
+1. ServiceNow instance host name, for example dev12345.service-now.com.
+2. Is this a non-production instance? If it is production, warn me and continue only after I answer an explicit "yes, production".
+3. Dynamics 365 Contact Center environment URL (for example https://contoso.crm.dynamics.com) and the environment's name as shown in Power Apps.
+4. Optional: the Dynamics 365 Contact Center app id (leave blank if I do not know it).
+5. Time zone (IANA name, for example America/New_York) and a short label (for example ET) for call titles.
+6. Besides me, which ServiceNow users should see the softphone (user names or e-mails)? "None" is fine.
+7. Confirm I can sign in to: (a) ServiceNow as an admin, (b) Power Apps with an account that can import solutions and create connections in that environment.
+
+PHASE 1 - PREFLIGHT
+1. Download files A and B. Check A is well-formed XML containing 182 sys_update_xml elements, and B is a valid zip containing solution.xml, customizations.xml and exactly two .json files under Workflows/. Expected sizes: A 552,684 bytes, B 8,394 bytes (they differ only if the README names newer files).
+2. Ask me to sign in to ServiceNow as an admin. Confirm the table sn_customerservice_case exists (Customer Service Management is installed) and the "CSM/FSM Configurable Workspace" is available. If either is missing, STOP: this package needs it.
+
+PHASE 2 - SERVICENOW PACKAGE
+1. System Update Sets > Retrieved Update Sets > "Import Update Set from XML" > upload file A.
+2. Open "D365 Contact Center - Call Journey 1.0.1". State must be Loaded and it must list 182 update records.
+3. Click "Preview Update Set" and wait until the state is Previewed. There must be 0 problems. If there is any problem, STOP and show it to me. Do not accept or skip problems.
+4. Click "Commit Update Set" and wait until the state is Committed.
+5. Verify, and report each item: table u_cc_call exists; Script Includes D365CCJourney, D365CCUtil, D365CCPlay and D365CCIcons exist; Scripted REST API "D365 Contact Center" is active with POST /api/global/d365cc/call; OpenFrame configuration "Dynamics 365 Contact Center" exists; UI Action "Open call journey" exists on sn_customerservice_case; UI Action "Recording & transcript" exists on u_cc_call; four Business Rules whose names start with "D365CC" exist.
+
+PHASE 3 - SETTINGS
+Set these System Properties (sys_properties.list): d365cc.org_url = my Dynamics 365 URL with no trailing slash; d365cc.app_id = the app id if I gave one; d365cc.time_zone; d365cc.time_zone_label. Then check the OpenFrame configuration "Dynamics 365 Contact Center" has a URL ending in dynamicsUrl=<my Dynamics 365 URL>. (It updates itself when d365cc.org_url is saved. If it did not, STOP and tell me.)
+
+PHASE 4 - INTEGRATION USER
+1. Create a ServiceNow user: User ID d365cc.integration, Active, "Web service access only" ticked.
+2. Give it the role sn_customerservice_agent.
+3. Generate the password and set it INSIDE ServiceNow with the "Set Password" action on the user form (or a server-side script). NEVER set it through the Table API or REST: that stores it in clear text and sign-in then fails.
+4. Verify by calling GET https://<instance>/api/now/table/u_cc_call?sysparm_limit=1 with Basic authentication as d365cc.integration. Expect HTTP 200. HTTP 401 means the password was not set correctly: set it again through the form. HTTP 403 means the role is missing.
+5. Check the Dynamics 365 endpoint the same way, with an EMPTY body so nothing is created: POST https://<instance>/api/global/d365cc/call with Basic authentication as d365cc.integration, header Content-Type: application/json and body {}. Expect HTTP 400 with the message "conversation_id is required". That proves the endpoint is live and the user may call it. HTTP 401, 403 or 404 means something is wrong: STOP and tell me. Never send a body that contains a conversation_id; that would create a Case and a call record.
+
+PHASE 5 - DYNAMICS 365
+1. Open https://make.powerapps.com, ask me to sign in, and select the environment I named. Confirm it is the Contact Center environment: it must have the table "Conversation" (logical name msdyn_ocliveworkitem). If not, STOP.
+2. Solutions > Import solution > upload file B > Next.
+3. On the connections page, create or select a Microsoft Dataverse connection for "D365 Contact Center - Dataverse" (I sign in if asked).
+4. Fill the three environment variables: "ServiceNow Instance" = the host name only (no https://); "ServiceNow User" = d365cc.integration; "ServiceNow Password" = the generated password.
+5. Import and wait for the success message.
+6. Open the solution "D365 Contact Center - ServiceNow Call Journey". Check that the connection reference "D365 Contact Center - Dataverse" is connected. Turn ON both flows: "D365 Contact Center - Create ServiceNow case when an agent accepts a call" and "D365 Contact Center - Sync ended calls to ServiceNow". Reload the page and confirm both show On. If a flow asks to fix its connection, fix it and turn it on again.
+7. Confirm all three environment variables have a current value. For the password only confirm it is not empty; never display it.
+
+PHASE 6 - SOFTPHONE ACCESS
+Give the role sn_openframe_user to me and to the users I listed. Verify each assignment. Tell them to hard-refresh the CSM/FSM Configurable Workspace; the Dynamics 365 softphone icon then appears in the top bar.
+
+PHASE 7 - END-TO-END CHECK
+Ask me to place a real call to my Dynamics 365 voice number, accept it as an agent, then end it. Do not create fake data. Then check, read-only:
+- Within about two minutes of the agent accepting: a new Case exists in sn_customerservice_case and a row exists in u_cc_call related to it.
+- After the call ends: the u_cc_call status is Completed and the Case Activity stream shows one entry "Contact Center call completed".
+- In the Workspace: the Case button "Open call journey" opens the call as a sub tab with the Call Journey card on top, and "Recording & transcript" on the call opens the recording and transcript pop-up.
+If something is missing, use the Troubleshooting table in the README. Look first at the flow run history in Power Automate, then at the ServiceNow System Log (messages starting with "[D365CC]"). Report what you find; do not change anything else without asking me.
+
+STOP AND ASK ME WHENEVER
+- a check in this prompt fails or a count does not match,
+- you are asked to sign in, approve MFA, accept terms or pay for anything,
+- the target looks like production and I have not said "yes, production",
+- you would have to do something that is not in this prompt.
+
+FINAL REPORT
+Give me a table with every phase and its result, then: (1) anything I still have to do by hand, (2) where the integration password is stored (the ServiceNow user record and the Dynamics 365 environment variable "ServiceNow Password") and how to rotate it (set a new password on the user in ServiceNow, then update the environment variable and turn the flows off and on), (3) the link to the README Troubleshooting section, (4) a reminder that this is a community sample, not an official Microsoft or ServiceNow product.
+````
 ## Install, step by step
 
 ### Step 1 – ServiceNow: import the update set
