@@ -171,7 +171,7 @@ D365CCJourney.prototype = {
     },
 
     wrap: function (inner) {
-        return '<div style="max-width:960px;border:1px solid ' + this.C.line + ';border-radius:12px;padding:20px 24px;background:#ffffff;box-shadow:0 1px 2px rgba(0,0,0,0.06);">' + inner + '</div>';
+        return '<div style="width:100%;box-sizing:border-box;border:1px solid ' + this.C.line + ';border-radius:12px;padding:20px 24px;background:#ffffff;box-shadow:0 1px 2px rgba(0,0,0,0.06);">' + inner + '</div>';
     },
 
     type: 'D365CCJourney'

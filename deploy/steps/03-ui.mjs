@@ -134,6 +134,8 @@ export default async function ui() {
     // Calls appear in the Case Activity stream (see 02-logic), not on the Case form: remove the old section.
     await removeSection(CASE, 'Call Journey');
     await removeSection(CALL, 'Quality evaluation');
+    // The inline recording link was replaced by the header buttons; drop it from forms deployed earlier.
+    for (const el of await api('GET', `/api/now/table/sys_ui_element?sysparm_query=${encodeURIComponent('element=u_recording^sys_ui_section.name=' + CALL)}&sysparm_fields=sys_id`)) await api('DELETE', `/api/now/table/sys_ui_element/${el.sys_id}`);
     for (const view of [null, 'workspace']) {
         await relatedList(CASE, view, 'u_cc_call.u_case');
         await relatedList('customer_contact', view, 'u_cc_call.u_contact');

@@ -150,7 +150,7 @@ export default async function logic() {
     await virtualField(CASE, 'u_d365_recording_url', "(function calculatedFieldValue(current) {\n  return new D365CCUtil().conversationUrl(current.getValue('u_d365_conversation_id'), true);\n})(current);");
     log('  calculated fields ok');
     // HTML fields render in a TinyMCE frame; give the journey cards room instead of a tiny scroll box.
-    for (const [table, el, h] of [[CALL, 'u_journey_html', 520], [CASE, 'u_call_journey', 1000]]) {
+    for (const [table, el, h] of [[CALL, 'u_journey_html', 340], [CASE, 'u_call_journey', 1000]]) {
         const d = await find('sys_dictionary', `name=${table}^element=${el}`);
         await api('PATCH', `/api/now/table/sys_dictionary/${d.sys_id}`, { attributes: `editor.height=${h},html_sanitize=false` });
     }
