@@ -43,6 +43,47 @@ D365CCUtil.prototype = {
     },
 
     // Path that opens the call (its Call Journey card, recording and evaluation) in the CSM/FSM Configurable Workspace.
+    // Match a CSM contact by phone (last 10 digits), then e-mail, then name; create one when nothing matches.
+    findOrCreateContact: function (name, email, phone) {
+        var digits = String(phone || '').replace(/\D/g, '');
+        var tail = digits.length >= 10 ? digits.slice(-10) : '';
+        var gr;
+        if (tail) {
+            gr = new GlideRecord('customer_contact');
+            var q = gr.addQuery('mobile_phone', 'ENDSWITH', tail.slice(-4));
+            gr.addOrCondition('phone', 'ENDSWITH', tail.slice(-4));
+            gr.query();
+            while (gr.next()) {
+                var cand = (gr.getValue('mobile_phone') + gr.getValue('phone')).replace(/\D/g, '');
+                if (cand.indexOf(tail) >= 0) return gr.getUniqueValue();
+            }
+        }
+        if (email) {
+            gr = new GlideRecord('customer_contact');
+            gr.addQuery('email', email);
+            gr.setLimit(1);
+            gr.query();
+            if (gr.next()) return gr.getUniqueValue();
+        }
+        var parts = String(name || '').trim().split(/\s+/);
+        if (parts[0]) {
+            gr = new GlideRecord('customer_contact');
+            gr.addQuery('first_name', parts[0]);
+            if (parts.length > 1) gr.addQuery('last_name', parts.slice(1).join(' '));
+            gr.setLimit(1);
+            gr.query();
+            if (gr.next()) return gr.getUniqueValue();
+            var nc = new GlideRecord('customer_contact');
+            nc.initialize();
+            nc.first_name = parts[0];
+            nc.last_name = parts.slice(1).join(' ') || '(caller)';
+            if (email) nc.email = email;
+            if (phone) nc.mobile_phone = phone;
+            return nc.insert();
+        }
+        return '';
+    },
+
     callPath: function (callSysId) {
         return '/now/cwf/agent/record/u_cc_call/' + callSysId;
     },

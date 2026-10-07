@@ -20,6 +20,30 @@
     gr.addQuery('u_conversation_id', convId);
     gr.setLimit(1);
     gr.query();
+
+    // Agent accepted a call that has no Case yet: create it (the IVR normally does this, but not for direct calls).
+    var caseCreated = '';
+    if (!gr.hasNext() && (body.create_case === true || body.create_case === 'true')) {
+        var existingCase = new GlideRecord('sn_customerservice_case');
+        existingCase.addQuery('u_d365_conversation_id', convId);
+        existingCase.setLimit(1);
+        existingCase.query();
+        if (!existingCase.next()) {
+            var contactId = new D365CCUtil().findOrCreateContact(body.contact_name, body.contact_email, body.caller_phone);
+            var nc = new GlideRecord('sn_customerservice_case');
+            nc.initialize();
+            nc.short_description = 'Inbound call' + (body.contact_name ? ' from ' + body.contact_name : '') + (body.subject ? ' - ' + body.subject : '');
+            nc.description = 'Case created automatically when an agent accepted a Dynamics 365 Contact Center call.';
+            nc.contact_type = 'phone';
+            if (contactId) nc.contact = contactId;
+            nc.u_d365_conversation_id = convId;
+            caseCreated = nc.insert();
+        }
+        gr = new GlideRecord('u_cc_call');
+        gr.addQuery('u_conversation_id', convId);
+        gr.setLimit(1);
+        gr.query();
+    }
     var created = false;
     if (!gr.next()) {
         gr.initialize();
@@ -50,5 +74,5 @@
     // D365 is the source of truth for when the call started, so (re)derive the title from it.
     if (body.call_received) gr.u_title = new D365CCUtil().titleFor(gr.getValue('u_call_received'));
     var id = created ? gr.insert() : gr.update();
-    return { sys_id: String(id || gr.getUniqueValue()), created: created, conversation_id: convId };
+    return { sys_id: String(id || gr.getUniqueValue()), created: created, case_created: String(caseCreated), conversation_id: convId };
 })(request, response);

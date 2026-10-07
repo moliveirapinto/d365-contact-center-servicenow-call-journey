@@ -94,10 +94,11 @@ All steps are idempotent: run them as often as you like. Run a subset with `node
    node deploy/d365/create-flow.mjs
    ```
    Set `D365_DATAVERSE_CONNREF` to the logical name of a Dataverse connection reference in your environment (default `new_d365cc_dataverse`). This creates *D365 Contact Center – Sync ended calls to ServiceNow* (trigger: voice conversation ends → read conversation → read quality evaluation → HTTP POST).
-3. **Replay a past call** to test without placing one:
+3. **Accept flow (auto-create the Case).** Same environment variables, then `node deploy/d365/create-accept-flow.mjs`, and turn the flow on. It creates *D365 Contact Center – Create ServiceNow case when an agent accepts a call* (trigger: voice conversation `msdyn_isagentaccepted` becomes true → read the conversation and customer contact → POST with `create_case: true`). ServiceNow finds the contact by phone, e-mail or name (or creates one), creates the Case and the call, and the Case Activity shows the entry. If the IVR already created the Case, nothing extra is created.
+4. **Replay a past call** to test without placing one:
    `node deploy/d365/replay-sync.mjs <conversationId>`
-4. **Widget.** Copilot Service admin center → *Your default contact center* → **Conversation widget** → copy the *Embeddable conversation widget URL* into `D365_WIDGET_URL` (the default is derived from your D365 URL) and run `deploy 04-security`.
-5. **Copilot Studio.** Same as the Salesforce guide, but write `Global.msdyn_ConversationId` into the ServiceNow Case field `u_d365_conversation_id` (ServiceNow connector → *Create record* on `sn_customerservice_case`).
+5. **Widget.** Copilot Service admin center → *Your default contact center* → **Conversation widget** → copy the *Embeddable conversation widget URL* into `D365_WIDGET_URL` (the default is derived from your D365 URL) and run `deploy 04-security`.
+6. **Copilot Studio.** Same as the Salesforce guide, but write `Global.msdyn_ConversationId` into the ServiceNow Case field `u_d365_conversation_id` (ServiceNow connector → *Create record* on `sn_customerservice_case`).
 
 ## Notes and limits
 
