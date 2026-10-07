@@ -32,8 +32,8 @@ const definition = {
                     'subscriptionRequest/message': 3,
                     'subscriptionRequest/entityname': 'msdyn_ocliveworkitem',
                     'subscriptionRequest/scope': 4,
-                    'subscriptionRequest/filteringattributes': 'msdyn_isagentaccepted',
-                    'subscriptionRequest/filterexpression': '(msdyn_isagentaccepted eq true and msdyn_channel eq 192440000)'
+                    'subscriptionRequest/filteringattributes': 'statuscode,msdyn_isagentaccepted',
+                    'subscriptionRequest/filterexpression': '(statuscode eq 2 and msdyn_channel eq 192440000)'
                 },
                 authentication: "@parameters('$authentication')"
             }
