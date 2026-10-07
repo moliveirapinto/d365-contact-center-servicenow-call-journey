@@ -148,64 +148,7 @@ D365CCJourney.prototype = {
             (full ? '' : this.button('open', 'Call details', '/now/cwf/agent/record/u_cc_call/' + callId, false)) + '</div>' : '';
 
         var html = '<div style="font-family:' + this.FONT + ';color:' + C.text + ';">' + header + timeline + stats + actions + '</div>';
-        if (full) html += this.renderQuality(gr);
         return html;
-    },
-
-    renderQuality: function (gr) {
-        var C = this.C;
-        var raw = gr.getValue('u_quality_score');
-        if (raw === null || raw === '') return '';
-        var score = Number(raw);
-        var band = this.scoreBand(score);
-
-        var inds = [];
-        try {
-            var j = JSON.parse(gr.getValue('u_quality_evaluation_json') || '{}');
-            inds = (j.evaluation_result && j.evaluation_result.responses) || [];
-        } catch (e) { inds = []; }
-        var attention = 0;
-        for (var a = 0; a < inds.length; a++) if (inds[a].monitorScore < 71) attention++;
-
-        var ring = '<div style="width:72px;height:72px;border-radius:50%;background:conic-gradient(' + band[1] + ' ' + (score * 3.6) + 'deg,#e8e8e8 0deg);">' +
-            '<div style="width:56px;height:56px;margin:8px;border-radius:50%;background:#ffffff;text-align:center;">' +
-            '<div style="font-size:22px;line-height:56px;font-weight:600;color:' + C.text + ';">' + score + '</div></div></div>';
-
-        var html = '<div style="font-family:' + this.FONT + ';color:' + C.text + ';margin-top:20px;padding-top:20px;border-top:1px solid ' + C.line + ';">' +
-            '<div style="display:flex;align-items:center;gap:8px;font-size:15px;line-height:20px;font-weight:600;"><span style="display:inline-block;width:20px;height:20px;">' + this.icon('sparkle', 20, C.brand) + '</span>AI quality evaluation</div>' +
-            '<div style="display:flex;align-items:center;gap:16px;margin:16px 0 20px;">' + ring + '<div>' +
-            '<div style="margin-bottom:4px;">' + this.badge(band[0], band[1], band[2]) + '</div>' +
-            '<div style="font-size:13px;line-height:18px;font-weight:600;">' + this.esc(gr.getValue('u_quality_plan') || 'Quality evaluation') + '</div>' +
-            '<div style="font-size:12px;line-height:16px;color:' + C.text2 + ';">' + (inds.length ? inds.length + ' indicators, ' + attention + ' need attention' : 'Overall score') + '</div></div></div>';
-
-        var summary = gr.getValue('u_quality_summary');
-        if (summary) html += '<div style="margin:0 0 12px;"><div style="font-size:12px;line-height:16px;font-weight:600;color:' + C.text2 + ';margin-bottom:4px;">Summary</div>' +
-            '<div style="font-size:13px;line-height:20px;color:' + C.text + ';">' + this.esc(summary) + '</div></div>';
-
-        var plan = gr.getValue('u_quality_action_plan');
-        if (plan) html += '<div style="margin:0 0 16px;padding:12px 14px;border-radius:6px;background:' + C.brandBg + ';border-left:3px solid ' + C.brand + ';">' +
-            '<div style="display:flex;align-items:center;gap:6px;font-size:12px;line-height:16px;font-weight:600;color:' + C.brandDark + ';margin-bottom:4px;"><span style="display:inline-block;width:16px;height:16px;">' + this.icon('lightbulb', 16, C.brandDark) + '</span>Coaching recommendation</div>' +
-            '<div style="font-size:13px;line-height:20px;color:' + C.text + ';">' + this.esc(plan) + '</div></div>';
-
-        if (inds.length) {
-            var toneBy = { Normal: [C.ok, C.okBg], Warning: [C.warn, C.warnBg], Critical: [C.bad, C.badBg] };
-            html += '<div style="font-size:12px;line-height:16px;font-weight:600;color:' + C.text2 + ';margin-bottom:6px;">Indicators</div>' +
-                '<div style="border:1px solid ' + C.line + ';border-radius:8px;">';
-            for (var i = 0; i < inds.length; i++) {
-                var r = inds[i];
-                var q = (r.questionInfo && r.questionInfo[0]) || {};
-                var b = this.scoreBand(r.monitorScore);
-                var t = toneBy[r.matchedBandLabel] || [b[1], b[2]];
-                var w = Math.max(3, Math.min(100, r.monitorScore));
-                html += '<div style="padding:12px 14px;' + (i ? 'border-top:1px solid ' + C.lineSoft + ';' : '') + '">' +
-                    '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">' +
-                    '<div style="font-size:13px;line-height:18px;font-weight:600;">' + this.esc(r.monitorName) + '</div>' + '<div>' + this.badge(this.esc(r.monitorScore), t[0], t[1]) + '</div></div>' +
-                    '<div style="height:4px;margin:8px 0;border-radius:2px;background:#ececec;"><div style="width:' + w + '%;height:4px;border-radius:2px;background:' + t[0] + ';"></div></div>' +
-                    '<div style="font-size:12px;line-height:18px;color:' + C.text2 + ';">' + this.esc((q.reason || q.answerText || '').replace(/^\s+|\s+$/g, '')) + '</div></div>';
-            }
-            html += '</div>';
-        }
-        return html + '</div>';
     },
 
     // Journey for one call record (call form).

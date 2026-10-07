@@ -135,14 +135,13 @@ export default async function ui() {
         '.begin_split', 'u_total_duration_seconds', 'u_virtual_agent_seconds', 'u_wait_time_seconds',
         '.split', 'u_talk_time_seconds', 'u_handle_time_seconds', 'u_conversation_id', 'u_recording_url', '.end_split'
     ];
-    const quality = ['u_quality_score', 'u_quality_plan', 'u_quality_evaluated_at', 'u_quality_summary', 'u_quality_action_plan', 'u_quality_evaluation_json'];
     for (const view of [null, 'workspace']) {
         await section(CALL, '', view, callLayout, 0);
         await section(CALL, 'Call details', view, callDetails, 1);
-        await section(CALL, 'Quality evaluation', view, quality, 2);
     }
     // Calls appear in the Case Activity stream (see 02-logic), not on the Case form: remove the old section.
     await removeSection(CASE, 'Call Journey');
+    await removeSection(CALL, 'Quality evaluation');
     for (const view of [null, 'workspace']) {
         await relatedList(CASE, view, 'u_cc_call.u_case');
         await relatedList('customer_contact', view, 'u_cc_call.u_contact');

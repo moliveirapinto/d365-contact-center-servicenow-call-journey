@@ -106,7 +106,6 @@ D365CCUtil.prototype = {
             if (talk) bits.push('Talk ' + talk);
             if (gr.getValue('u_agent')) bits.push('Agent ' + gr.getValue('u_agent'));
             if (gr.getValue('u_customer_sentiment')) bits.push(gr.getValue('u_customer_sentiment') + ' sentiment');
-            if (gr.getValue('u_quality_score')) bits.push('Quality ' + gr.getValue('u_quality_score') + ' (' + j.scoreBand(Number(gr.getValue('u_quality_score')))[0] + ')');
             detail = bits.join('  |  ');
         }
         var html = '<div style="font-family:' + j.FONT + ';">' +
