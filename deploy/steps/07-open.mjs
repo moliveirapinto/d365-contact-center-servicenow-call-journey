@@ -9,8 +9,14 @@ const PAGE = `<?xml version="1.0" encoding="utf-8" ?>
     var id = String(RP.getParameterValue('sysparm_call') || '');
     /^[0-9a-f]{32}$/.test(id) ? id : '';
 ]]></g:evaluate>
+<g:evaluate var="jvar_case" jelly="true"><![CDATA[
+    var cs = '';
+    var cid = String(RP.getParameterValue('sysparm_call') || '');
+    if (/^[0-9a-f]{32}$/.test(cid)) { var g = new GlideRecord('u_cc_call'); if (g.get(cid)) cs = String(g.getValue('u_case') || ''); }
+    cs;
+]]></g:evaluate>
 <div id="msg" style="font-family:'Source Sans Pro',Helvetica,Arial,sans-serif;font-size:14px;color:#424242;padding:24px;">Opening call journey...</div>
-<div id="callid" data-id="\${jvar_id}" style="display:none"></div>
+<div id="callid" data-id="\${jvar_id}" data-case="\${jvar_case}" style="display:none"></div>
 <script>
 (function () {
     var id = document.getElementById('callid').getAttribute('data-id');
@@ -20,7 +26,7 @@ const PAGE = `<?xml version="1.0" encoding="utf-8" ?>
     bc.onmessage = function (e) {
         if (e.data) { if (e.data.ack === id) { done = true; window.close(); document.getElementById('msg').textContent = 'Opened. You can close this tab.'; } }
     };
-    bc.postMessage({ call: id, msg: String(Date.now()) });
+    bc.postMessage({ call: id, case: document.getElementById('callid').getAttribute('data-case') || '', msg: String(Date.now()) });
     setTimeout(function () {
         if (!done) { location.replace('/now/cwf/agent/record/u_cc_call/' + id); }
     }, 1800);
@@ -42,7 +48,10 @@ const LISTENER = `function onLoad() {
         if (!d.call) return;
         var active = '';
         try { active = localStorage.getItem('d365cc_active') || ''; } catch (x) { }
-        if (active !== me) return;
+        // Answer when this is the last-used window, or when it already shows the call's own Case.
+        var mine = false;
+        try { mine = !!d.case && (g_form.getUniqueValue() === d.case || g_form.getValue('u_case') === d.case); } catch (x) { }
+        if (active !== me && !mine) return;
         var last = '';
         try { last = sessionStorage.getItem('d365cc_handled') || ''; } catch (x) { last = seen; }
         if (last === d.msg) return;
