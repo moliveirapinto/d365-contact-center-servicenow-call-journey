@@ -19,6 +19,10 @@ This is the ServiceNow port of the [Salesforce Call Journey](https://github.com/
 
 ---
 
+> **Download the install packages from the [latest release](https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/latest)** (ServiceNow update set + Dynamics 365 solution), then follow [Install, step by step](#install-step-by-step).
+
+---
+
 ## Contents
 
 1. [What you get](#what-you-get)
