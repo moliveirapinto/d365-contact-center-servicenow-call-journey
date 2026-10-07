@@ -27,7 +27,7 @@ This is the ServiceNow port of the [Salesforce Call Journey](https://github.com/
 
 1. [What you get](#what-you-get)
 2. [What is in this repository](#what-is-in-this-repository)
-3. [Before you start](#before-you-start)
+3. [Before you start](#before-you-start) (including how to get a free ServiceNow instance)
 4. [Let an AI assistant install it for you](#let-an-ai-assistant-install-it-for-you)
 5. [Install, step by step](#install-step-by-step)
    * [Step 1 – ServiceNow: import the update set](#step-1--servicenow-import-the-update-set)
@@ -87,6 +87,27 @@ You need:
 
 > **Try it on a non-production instance first.** This is a community sample, not an official Microsoft or ServiceNow product.
 
+### Don't have a ServiceNow instance? Get a free one
+
+ServiceNow has no public trial, but there are two free routes. Both give you an instance you can sign in to as `admin`.
+
+**Option A: Personal Developer Instance (PDI), the standard way**
+1. Create a free account at **https://developer.servicenow.com** (**Sign up and start building**) and verify your email.
+2. Sign in, accept the Developer Program terms and click **Request an instance**. Choose the **latest release** offered.
+3. **Be aware:** at busy times requests are put on a **waitlist** (it can take hours or days) and you get an email when the instance is ready. A PDI is **reclaimed after 10 days of inactivity**, so log in at least once a week. Developer-program instances come with an `admin` login, and the page shows your instance name (for example `dev12345`), URL and password.
+4. A PDI does not always include Customer Service Management. In the instance, go to **All → System Applications → All Available Applications → All** and search for **Customer Service** (also called *CSM*) and the **CSM/FSM Configurable Workspace**. If they are not installed, click **Install** and wait until the installation finishes. If you cannot find them there, use Option B.
+
+**Option B: a ServiceNow University lab instance (includes CSM)**
+1. Create a free account at **https://learning.servicenow.com** and sign in.
+2. Enrol in the free on-demand course **Customer Service Management (CSM) Essentials** (use the latest release version listed).
+3. Open the course's **lab** and start the lab instance. ServiceNow gives you the instance address and an `admin` login for it. CSM and the Workspace are already there.
+4. **Be aware:** a lab instance is temporary (for example about a week). Install this package right after you get it, and ask for a new one when it expires.
+
+Whichever you choose:
+- Note the **instance host name** (for example `dev12345.service-now.com`, or the lab host name) and the `admin` login. You enter the password only in the browser, never in the AI chat.
+- Check that it works: open `https://<your host>/now/cwf/agent/home`. You should see the Customer Service Workspace. If it shows *page not found* or no Workspace, CSM or the Configurable Workspace is not active yet.
+- Use it for testing only, with no real customer data.
+- ServiceNow changes these sign-up pages from time to time. If a link has moved, search for *"ServiceNow Developer Program personal developer instance"*.
 ---
 
 ## Let an AI assistant install it for you
@@ -94,6 +115,8 @@ You need:
 Copy the whole prompt below into an AI assistant that can work in a browser and/or run commands (for example **Claude** with computer or browser use, **Claude Code**, or a similar agent). It will ask you a few questions, install both packages, check every step, and report back. If your assistant cannot operate a browser, the prompt switches it to a guided mode where it walks you through each click.
 
 **You stay in control:** you sign in yourself (including MFA), and the assistant stops and asks whenever something is not as expected.
+
+> ✅ **Nothing to edit.** Paste the prompt exactly as it is. The assistant starts by **asking you** for what it needs: your ServiceNow instance address, your Dynamics 365 environment URL, your time zone, and who should see the softphone. Have those ready. Anything in `<angle brackets>` or with an example value (such as `dev12345.service-now.com` or `contoso.crm.dynamics.com`) is filled in by the assistant from your answers. You never type your passwords into the chat: you sign in yourself in the browser, including MFA. The assistant creates the one password the integration needs and keeps it only inside ServiceNow and Power Automate.
 
 ````text
 You are an installation engineer. Install the community package "Dynamics 365 Contact Center x ServiceNow Call Journey" for me, end to end, carefully and safely.
