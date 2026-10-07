@@ -17,8 +17,7 @@ const WORKSPACE_CLICK = (title, param) => `function onClick(g_form) {
     g_modal.showFrame({
         url: '/d365cc_recording.do?${param}=' + encodeURIComponent(g_form.getUniqueValue()),
         title: '${title}',
-        size: 'lg',
-        height: 900
+        size: 'lg'
     });
 }`;
 
@@ -130,7 +129,7 @@ export default async function ui() {
     const callLayout = [
         '.begin_split', 'u_title', 'u_status', 'u_case', 'u_contact', 'u_direction', 'u_channel', 'u_caller_phone', 'u_called_number',
         '.split', 'u_call_received', 'u_agent_connected', 'u_call_ended', 'u_queue', 'u_agent', 'u_customer_sentiment', 'u_handled_by_virtual_agent',
-        '.end_split', 'u_journey_html', 'u_recording'
+        '.end_split', 'u_journey_html'
     ];
     const callDetails = [
         '.begin_split', 'u_total_duration_seconds', 'u_virtual_agent_seconds', 'u_wait_time_seconds',

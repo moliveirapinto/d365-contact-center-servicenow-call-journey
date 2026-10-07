@@ -65,8 +65,7 @@ const CLIENT = `function onLoad() {
         var open = function () { g_modal.showFrame({
             url: '/d365cc_recording.do?' + p[0] + '=' + encodeURIComponent(p[1]),
             title: p[0] === 'sysparm_case' ? 'Call recordings' : 'Call recording',
-            size: 'lg',
-            height: 900
+            size: 'lg'
         }); };
         setTimeout(open, 2500);
     });

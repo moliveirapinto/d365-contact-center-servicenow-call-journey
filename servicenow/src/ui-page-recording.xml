@@ -75,8 +75,32 @@
         }
         show(0);
     }
-</script>
+    // Workspace caps its modal at 800x600 (.now-modal-dialog). This page is same-origin with the Workspace, so it
+    // lifts that cap and fills the window; harmless when the page is opened outside a Workspace modal.
+    function growModal() {
+        try {
+            var top = window.parent, h = Math.floor(top.innerHeight * 0.94), w = Math.floor(top.innerWidth * 0.96);
+            var n = window.frameElement, dialog = null, body = null;
+            while (n) {
+                var c = n.classList;
+                if (c) { if (c.contains('now-modal-dialog')) dialog = n; if (c.contains('now-modal-body')) body = n; }
+                n = n.assignedSlot || (n.parentNode ? n.parentNode.host : null) || n.parentElement;
+            }
+            if (!dialog) return;
+            if (!body) return;
+            var set = function (el, k, v) { el.style.setProperty(k, v, 'important'); };
+            set(dialog, 'max-width', w + 'px'); set(dialog, 'width', w + 'px');
+            set(dialog, 'max-height', h + 'px'); set(dialog, 'height', h + 'px');
+            var head = h - 90;
+            set(body, 'max-height', head + 'px'); set(body, 'height', head + 'px');
+            var fe = window.frameElement;
+            set(fe, 'width', '100%'); set(fe, 'height', head - 20 + 'px');
+            if (fe.parentElement) { set(fe.parentElement, 'width', '100%'); set(fe.parentElement, 'height', head - 20 + 'px'); }
+        } catch (e) { }
+    }
+    growModal();
+    setTimeout(growModal, 300);
+    setTimeout(growModal, 1200);</script>
 </j:jelly>
-
 
 
