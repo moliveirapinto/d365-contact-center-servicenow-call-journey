@@ -52,8 +52,13 @@ const PICKER = `<?xml version="1.0" encoding="utf-8" ?>
         gr.setLimit(50);
         gr.query();
         while (gr.next()) {
-            list.push({ id: gr.getUniqueValue(), when: gr.getDisplayValue('u_call_received'), agent: gr.getValue('u_agent') || '',
-                dur: j.secs(gr.getValue('u_total_duration_seconds')) || '', status: gr.getDisplayValue('u_status') || '', dir: gr.getDisplayValue('u_direction') || '' });
+            var when = '';
+            if (gr.getValue('u_call_received')) { var g = new GlideDateTime(); g.setValue(gr.getValue('u_call_received')); when = g.getDisplayValueInternal(); }
+            var q = gr.getValue('u_quality_score');
+            var band = (q === null || q === '') ? null : j.scoreBand(Number(q));
+            list.push({ id: gr.getUniqueValue(), when: when, agent: gr.getValue('u_agent') || '', dur: j.secs(gr.getValue('u_total_duration_seconds')) || '',
+                status: gr.getDisplayValue('u_status') || '', dir: gr.getDisplayValue('u_direction') || '', sentiment: gr.getValue('u_customer_sentiment') || '',
+                q: q === null ? '' : q, qband: band ? band[0] : '', qcolor: band ? band[1] : '', qbg: band ? band[2] : '' });
         }
     }
     JSON.stringify(list);
@@ -61,21 +66,44 @@ const PICKER = `<?xml version="1.0" encoding="utf-8" ?>
 <style>
     html, body { margin: 0; overflow-x: hidden; font-family: "Source Sans Pro", Helvetica, Arial, sans-serif; color: #242424; }
     .btn-response-time { display: none !important; }
-    .hint { padding: 12px 16px; font-size: 13px; color: #5f6b7a; }
-    .row { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-top: 1px solid #e6e9ef; cursor: pointer; }
-    .row:hover { background: #eef4fc; }
-    .when { font-size: 14px; font-weight: 600; min-width: 190px; }
-    .meta { font-size: 13px; color: #5f6b7a; flex: 1; }
-    .pill { font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 10px; background: #e5f3e5; color: #107c10; }
+    .cc-hint { padding: 4px 16px 12px; font-size: 13px; color: #5f6b7a; }
+    .cc-grid { display: grid; grid-template-columns: 110px 80px 80px minmax(120px, 1fr) 80px 100px 110px 100px; align-items: center; column-gap: 12px; padding: 12px 16px; box-sizing: border-box; }
+    .cc-head { font-size: 12px; font-weight: 600; color: #5f6b7a; text-transform: uppercase; letter-spacing: 0.03em; border-top: 1px solid #e6e9ef; background: #f7f8fa; padding-top: 8px; padding-bottom: 8px; }
+    .cc-row { border-top: 1px solid #e6e9ef; cursor: pointer; font-size: 14px; }
+    .cc-row:hover { background: #eef4fc; }
+    .cc-date { font-weight: 600; }
+    .cc-muted { color: #5f6b7a; }
+    .cc-pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 10px; white-space: nowrap; }
 </style>
-<div class="hint">This case has several calls. Pick one to open it.</div>
+<div class="cc-hint">This case has several calls. Pick one to open it.</div>
+<div class="cc-grid cc-head"><div>Date</div><div>Time</div><div>Direction</div><div>Agent</div><div>Duration</div><div>Sentiment</div><div>Quality</div><div>Status</div></div>
 <div id="list" data-calls="\${HTML:jvar_calls}"></div>
 <script>
 (function () {
     var calls = JSON.parse(document.getElementById('list').getAttribute('data-calls') || '[]');
     var caseId = (location.search.match(/sysparm_case=([0-9a-f]{32})/) || [])[1] || '';
     var bc = new BroadcastChannel('d365cc_open');
-    function closeModal() {
+    // Workspace caps its modal at 800x600; this page is same-origin, so widen the dialog to fit the table.
+    function growModal() {
+        try {
+            var top = window.parent, w = Math.min(1100, Math.floor(top.innerWidth * 0.96)), h = Math.min(560, Math.floor(top.innerHeight * 0.9));
+            var n = window.frameElement, dialog = null, body = null;
+            while (n) {
+                var cl = n.classList;
+                if (cl) { if (cl.contains('now-modal-dialog')) dialog = n; if (cl.contains('now-modal-body')) body = n; }
+                n = n.assignedSlot || (n.parentNode ? n.parentNode.host : null) || n.parentElement;
+            }
+            if (!dialog || !body) return;
+            var set = function (el, k, v) { el.style.setProperty(k, v, 'important'); };
+            set(dialog, 'max-width', w + 'px'); set(dialog, 'width', w + 'px'); set(dialog, 'max-height', h + 'px'); set(dialog, 'height', h + 'px');
+            var bh = (h - 90) + 'px';
+            set(body, 'max-height', bh); set(body, 'height', bh);
+            var fe = window.frameElement;
+            set(fe, 'width', '100%'); set(fe, 'height', (h - 110) + 'px');
+            if (fe.parentElement) { set(fe.parentElement, 'width', '100%'); set(fe.parentElement, 'height', (h - 110) + 'px'); }
+        } catch (e) { }
+    }
+    growModal(); setTimeout(growModal, 300); setTimeout(growModal, 1200);    function closeModal() {
         try {
             var n = window.frameElement;
             while (n) {
@@ -87,13 +115,29 @@ const PICKER = `<?xml version="1.0" encoding="utf-8" ?>
         } catch (e) { }
     }
     bc.onmessage = function (e) { if (e.data && e.data.ack) closeModal(); };
+    var SENT = { positive: ['#107c10', '#e5f3e5'], neutral: ['#424242', '#ececec'], negative: ['#b10e1c', '#fbe9ea'] };
+    function pill(text, color, bg) { var s = document.createElement('span'); s.className = 'cc-pill'; s.textContent = text; s.style.color = color; s.style.background = bg; return s; }
     calls.forEach(function (c) {
         var d = document.createElement('div');
-        d.className = 'row';
-        d.innerHTML = '<div class="when"></div><div class="meta"></div><div class="pill"></div>';
-        d.children[0].textContent = c.when;
-        d.children[1].textContent = [c.dir, c.agent, c.dur].filter(Boolean).join('  |  ');
-        d.children[2].textContent = c.status;
+        d.className = 'cc-grid cc-row';
+        var date = '', time = '';
+        var m = (c.when || '').match(/^(\\d{4})-(\\d{2})-(\\d{2}) (\\d{2}):(\\d{2})/);
+        if (m) {
+            var dt = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+            date = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            time = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        }
+        var cells = [date, time, c.dir, c.agent, c.dur];
+        cells.forEach(function (t, i) { var e = document.createElement('div'); e.textContent = t; e.className = i === 0 ? 'cc-date' : (i === 3 ? '' : 'cc-muted'); d.appendChild(e); });
+        var s = document.createElement('div');
+        if (c.sentiment) { var sc = SENT[c.sentiment.toLowerCase()] || SENT.neutral; s.appendChild(pill(c.sentiment, sc[0], sc[1])); }
+        d.appendChild(s);
+        var q = document.createElement('div');
+        if (c.q !== '') q.appendChild(pill(c.q + ' ' + c.qband, c.qcolor, c.qbg));
+        d.appendChild(q);
+        var st = document.createElement('div');
+        if (c.status) st.appendChild(pill(c.status, '#107c10', '#e5f3e5'));
+        d.appendChild(st);
         d.onclick = function () { bc.postMessage({ call: c.id, case: caseId, msg: String(Date.now()) }); };
         document.getElementById('list').appendChild(d);
     });
