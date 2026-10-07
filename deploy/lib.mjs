@@ -41,8 +41,8 @@ export async function api(method, urlPath, body) {
             break;
         } catch (e) {
             // Dropped connections happen now and then on busy instances; retry before giving up.
-            if (attempt >= 4) throw e;
-            await new Promise((r) => setTimeout(r, 1500 * attempt));
+            if (attempt >= 8) throw e;
+            await new Promise((r) => setTimeout(r, 2500 * attempt));
         }
     }
     const text = await res.text();

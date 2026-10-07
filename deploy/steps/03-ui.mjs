@@ -25,7 +25,17 @@ const WORKSPACE_CLICK = (title, param) => `function onClick(g_form) {
 // Shown on a Case whenever any call is linked to it (not only the one the IVR stamped on the Case).
 const CASE_HAS_CALLS = "(function () { var g = new GlideAggregate('u_cc_call'); g.addQuery('u_case', current.getUniqueValue()); g.addAggregate('COUNT'); g.query(); return g.next() && parseInt(g.getAggregate('COUNT'), 10) > 0; })()";
 
-async function uiAction({ table, name, title, order, condition }) {
+const CASE_OPEN = `function onClick(g_form) {
+    var ga = new GlideAjax('D365CCPlay');
+    ga.addParam('sysparm_name', 'latestCall');
+    ga.addParam('sysparm_case', g_form.getUniqueValue());
+    ga.getXMLAnswer(function (callId) {
+        if (callId) g_aw.openRecord('u_cc_call', callId);
+        else g_form.addInfoMessage('This case has no calls yet.');
+    });
+}`;
+
+async function uiAction({ table, name, title, order, condition, workspaceScript }) {
     const param = PARAM[table];
     return upsert('sys_ui_action', `name=${name}^table=${table}`, {
         name, table, action_name: name.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
@@ -35,7 +45,7 @@ async function uiAction({ table, name, title, order, condition }) {
         condition: condition || '',
         onclick: CLASSIC_CLICK(title, param).split('\n')[0],
         script: CLASSIC_CLICK(title, param),
-        client_script_v2: WORKSPACE_CLICK(title, param),
+        client_script_v2: workspaceScript || WORKSPACE_CLICK(title, param),
         hint: title
     });
 }
@@ -113,7 +123,7 @@ export default async function ui() {
     await uiAction({ table: CALL, name: 'Transcript', title: 'Call transcript', order: 110 });
     await uiAction({
         table: CASE, name: 'Play call recording', title: 'Call recording', order: 400,
-        condition: CASE_HAS_CALLS
+        condition: CASE_HAS_CALLS, workspaceScript: CASE_OPEN
     });
     log('  ui actions ok');
 

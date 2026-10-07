@@ -145,13 +145,14 @@ export default async function logic() {
     // Calculated (virtual) fields: always live, rendered in each viewer's own time zone, follow the d365cc.* settings.
     await virtualField(CALL, 'u_journey_html', '(function calculatedFieldValue(current) {\n  return new D365CCJourney().forCall(current.getUniqueValue());\n})(current);');
     await virtualField(CALL, 'u_recording_url', "(function calculatedFieldValue(current) {\n  return new D365CCUtil().conversationUrl(current.getValue('u_conversation_id'), true);\n})(current);");
-    await virtualField(CALL, 'u_recording', "(function calculatedFieldValue(current) {\n  var u = new D365CCUtil().conversationUrl(current.getValue('u_conversation_id'), false);\n  return u ? '<a href=\"' + u + '\" target=\"_blank\" rel=\"noopener\">Open call recording &amp; transcript</a>' : '';\n})(current);");
+    // The D365 conversation (player, transcript, AI evaluation) embedded at full form width, so it is readable.
+    await virtualField(CALL, 'u_recording', "(function calculatedFieldValue(current) {\n  var u = new D365CCUtil().conversationUrl(current.getValue('u_conversation_id'), true);\n  return u ? '<iframe title=\"Call recording and transcript\" src=\"' + u + '\" allow=\"autoplay; clipboard-write\" style=\"width:100%;height:760px;border:1px solid #d1d1d1;border-radius:6px;background:#fff;\"></iframe>' : '';\n})(current);");
     await virtualField(CASE, 'u_call_journey', '(function calculatedFieldValue(current) {\n  return new D365CCJourney().forCase(current.getUniqueValue());\n})(current);');
     await virtualField(CASE, 'u_d365_call_recording', "(function calculatedFieldValue(current) {\n  var u = new D365CCUtil().conversationUrl(current.getValue('u_d365_conversation_id'), false);\n  return u ? '<a href=\"' + u + '\" target=\"_blank\" rel=\"noopener\">Open call recording &amp; transcript</a>' : '';\n})(current);");
     await virtualField(CASE, 'u_d365_recording_url', "(function calculatedFieldValue(current) {\n  return new D365CCUtil().conversationUrl(current.getValue('u_d365_conversation_id'), true);\n})(current);");
     log('  calculated fields ok');
     // HTML fields render in a TinyMCE frame; give the journey cards room instead of a tiny scroll box.
-    for (const [table, el, h] of [[CALL, 'u_journey_html', 640], [CASE, 'u_call_journey', 560]]) {
+    for (const [table, el, h] of [[CALL, 'u_journey_html', 640], [CALL, 'u_recording', 800], [CASE, 'u_call_journey', 560]]) {
         const d = await find('sys_dictionary', `name=${table}^element=${el}`);
         await api('PATCH', `/api/now/table/sys_dictionary/${d.sys_id}`, { attributes: `editor.height=${h},html_sanitize=false` });
     }
