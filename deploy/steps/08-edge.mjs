@@ -9,7 +9,7 @@ const HOST_SCRIPT = `(function () {
     if (!root) return;
     var edgeUrl = root.getAttribute('data-edge-url') || 'https://portal.us.contactcenterai.powerplatform.com/experience/agent';
     var orgUrl = (root.getAttribute('data-org-url') || '').replace(/\\/+$/, '');
-    var layout = root.getAttribute('data-layout') || 'embedded';
+    var layout = root.getAttribute('data-layout') || 'compact';
     var verbose = root.getAttribute('data-verbose') === 'true';
     var status = document.getElementById('d365cc_status');
     var iframe = null;
@@ -158,7 +158,7 @@ const PAGE = `<?xml version="1.0" encoding="utf-8" ?>
 <j:jelly trim="false" xmlns:j="jelly:core" xmlns:g="glide" xmlns:j2="null" xmlns:g2="null">
 <g:evaluate var="jvar_org" jelly="true">String(gs.getProperty('d365cc.org_url', '') || '');</g:evaluate>
 <g:evaluate var="jvar_edge" jelly="true">String(gs.getProperty('d365cc.edge_url', 'https://portal.us.contactcenterai.powerplatform.com/experience/agent') || '');</g:evaluate>
-<g:evaluate var="jvar_layout" jelly="true">String(gs.getProperty('d365cc.edge_layout', 'embedded') || 'embedded');</g:evaluate>
+<g:evaluate var="jvar_layout" jelly="true">String(gs.getProperty('d365cc.edge_layout', 'compact') || 'compact');</g:evaluate>
 <html>
 <head>
 <title>Dynamics 365 Contact Center</title>
