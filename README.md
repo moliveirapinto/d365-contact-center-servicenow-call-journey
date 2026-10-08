@@ -199,7 +199,7 @@ STEP 7 - FIRST LOAD AND CHECK
 4. "Application Failed to Load" inside the panel: OpenFrame is pointing straight at the portal instead of /d365cc_edge.do (fix STEP 4), or the host script is missing (STEP 3.2). Open https://<host>/d365cc_edge.do on its own to tell which.
 5. Panel says "Set the system property d365cc.org_url to your Dynamics 365 URL": set it (STEP 3.4).
 6. Pop-up blocked or sign-in loops: allow pop-ups and third-party cookies as in STEP 6.4, and retry in a normal (not private) window. HTTP 400 "Request Too Long": clear the cookies for dynamics.com and microsoftonline.com and retry.
-7. Tell me: the "Open Copilot" button on the empty "No active conversations" screen, and the header Copilot icon, do nothing while there is no conversation. That is Microsoft's current preview behavior (it is the same in Microsoft's portal opened on its own), not a setup problem. Test Copilot during a call.
+7. Tell me: Edge keeps loading for about 30 seconds after the panel first opens (even when it already shows "No active conversations"). Until then the "Open Copilot" button and the header Copilot icon do nothing. After that both open the Copilot pane ("What can I help with?"), also without a conversation.
 8. The browser console shows "Creating a worker from 'blob:...' violates the following Content Security Policy directive". That message comes from Microsoft's portal itself and also appears outside ServiceNow; ignore it unless voice calls fail.
 
 STEP 8 - FINAL REPORT
@@ -288,7 +288,7 @@ PHASE 5 - DYNAMICS 365
 7. Confirm all three environment variables have a current value. For the password only confirm it is not empty; never display it.
 
 PHASE 6 - SOFTPHONE ACCESS
-Give the role sn_openframe_user to me and to the users I listed. Verify each assignment. Open https://<instance>/cache.do once (OpenFrame configurations are cached). Tell them to hard-refresh the CSM/FSM Configurable Workspace; a phone icon then appears in the top bar and opens the Dynamics 365 Contact Center Edge desktop in a 480 x 700 side panel. The first time, each agent signs in to Microsoft in a pop-up (allow pop-ups for the ServiceNow host). Tell me that "Open Copilot" does nothing while there is no conversation (Microsoft preview behavior); Copilot is tested during the call in PHASE 7.
+Give the role sn_openframe_user to me and to the users I listed. Verify each assignment. Open https://<instance>/cache.do once (OpenFrame configurations are cached). Tell them to hard-refresh the CSM/FSM Configurable Workspace; a phone icon then appears in the top bar and opens the Dynamics 365 Contact Center Edge desktop in a 480 x 700 side panel. The first time, each agent signs in to Microsoft in a pop-up (allow pop-ups for the ServiceNow host). Tell me that Copilot ("Open Copilot" or the header Copilot icon) responds only once Edge has finished loading, about 30 seconds after the panel first opens.
 
 PHASE 7 - END-TO-END CHECK
 Ask me to place a real call to my Dynamics 365 voice number, accept it as an agent, then end it. Do not create fake data. Then check, read-only:
@@ -389,7 +389,7 @@ The update set created everything the panel needs: the OpenFrame configuration *
 
 At 480 px Edge shows one pane at a time. The toggle on the left of the panel switches to the conversation list, and the panel's **⋮** menu → *Panel Placement* docks it beside the page instead. To make it bigger, change **Width** and **Height** in **OpenFrame → Configurations → Dynamics 365 Contact Center**.
 
-> **Copilot:** with no active conversation, the **Open Copilot** button and the header Copilot icon do nothing. That is Microsoft's current preview behavior: it is the same in Microsoft's own portal outside any CRM. Test Copilot during a call.
+> **Copilot:** the **Open Copilot** button and the header Copilot icon open the Copilot pane, also with no conversation. Edge keeps loading for about 30 seconds after the panel first opens, and until then they do nothing: wait a moment and click again.
 
 ### Step 7 – Copilot Studio (optional)
 
@@ -427,7 +427,7 @@ To send a past call again without placing a new one, use the [replay script](#al
 | Panel says **Application Failed to Load** | OpenFrame points straight at the Edge portal. Its URL must be `/d365cc_edge.do` (the page answers the portal's start-up handshake). Open `https://<instance>/d365cc_edge.do` on its own to test the page. |
 | Panel says **Set the system property d365cc.org_url** | `d365cc.org_url` is empty or still `https://YOURORG.crm.dynamics.com` (committing an update set resets it). Set it (Step 2). |
 | Microsoft sign-in pop-up does not open, or sign-in loops | Allow pop-ups for your ServiceNow host and third-party cookies for `*.powerplatform.com`, `*.dynamics.com`, `*.microsoftonline.com`; use a normal (not private) window. |
-| **Open Copilot** does nothing | Expected while there is no conversation (Microsoft preview behavior, also in Microsoft's own portal). Try during a call. |
+| **Open Copilot** does nothing | Edge is still loading (about 30 seconds after the panel first opens, even if the inbox already shows). Wait and click again. If it never opens, check Copilot is enabled for agents in the Copilot Service admin center. |
 | Browser console: *Creating a worker from 'blob:...' violates the following Content Security Policy* | Comes from Microsoft's Edge portal itself, also outside ServiceNow. Ignore it unless voice calls fail. |
 | Call record form is missing the journey card or the related lists | Run the optional repair script (see step 2). |
 | Dynamics 365 widget keeps crashing in the browser | Very large numbers of unread notifications in Dynamics 365 can exhaust the browser: delete old `appnotification` records. |
