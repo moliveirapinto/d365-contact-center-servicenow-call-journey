@@ -40,7 +40,7 @@ const definition = {
                 parameters: {
                     entityName: 'msdyn_ocliveworkitems',
                     $select: 'subject,msdyn_createdon,msdyn_activeagentassignedon,msdyn_channelconnectionid,msdyn_copilotengaged,_msdyn_customer_value,_msdyn_cdsqueueid_value,_msdyn_activeagentid_value',
-                    $filter: "statecode eq 0 and msdyn_channel eq '192440000' and msdyn_activeagentassignedon ne null and createdon ge @{addHours(utcNow(), -3)}",
+                    $filter: "msdyn_channel eq '192440000' and msdyn_activeagentassignedon ne null and createdon ge @{addMinutes(utcNow(), -30)}",
                     $top: 20
                 },
                 authentication: "@parameters('$authentication')"

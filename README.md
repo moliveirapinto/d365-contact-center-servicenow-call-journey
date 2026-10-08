@@ -65,9 +65,9 @@ Calls reach ServiceNow by themselves: when an agent accepts a voice call in Dyna
 
 | Folder / file | What it is |
 |---|---|
-| [`servicenow/package/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.0.1.xml`](servicenow/package) | **ServiceNow update set**, the whole ServiceNow side in one file: table `u_cc_call` and its fields, Case fields, Script Includes, Business Rules, UI Page and Actions, the Case button and call picker, form layouts, related lists, softphone (OpenFrame) configuration, the REST API and the system properties. |
+| [`servicenow/package/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.0.2.xml`](servicenow/package) | **ServiceNow update set**, the whole ServiceNow side in one file: table `u_cc_call` and its fields, Case fields, Script Includes, Business Rules, UI Page and Actions, the Case button and call picker, form layouts, related lists, softphone (OpenFrame) configuration, the REST API and the system properties. |
 | [`servicenow/package/post-install-fix-script.js`](servicenow/package/post-install-fix-script.js) | Optional repair script (also inside the update set): re-creates the form layout, related lists and softphone, and gives you the softphone role. You do not need it after a normal install. |
-| [`dynamics365/D365ContactCenter_ServiceNow_CallJourney_1_0_0_0.zip`](dynamics365) | **Dynamics 365 solution** (unmanaged): the two Power Automate flows, a connection reference and three environment variables for the ServiceNow address and login. No credentials inside. |
+| [`dynamics365/D365ContactCenter_ServiceNow_CallJourney_1_0_1_0.zip`](dynamics365) | **Dynamics 365 solution** (unmanaged): the two Power Automate flows, a connection reference and three environment variables for the ServiceNow address and login. No credentials inside. |
 | `servicenow/src/`, `deploy/` | Source of everything above and a scripted installer (see [Alternative: scripted install](#alternative-scripted-install)). |
 | `docs/images/` | Screenshots used in this README. |
 
@@ -210,9 +210,9 @@ You are an installation engineer. Install the community package "Dynamics 365 Co
 SOURCE
 Repository: https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey
 README (source of truth): https://raw.githubusercontent.com/moliveirapinto/d365-contact-center-servicenow-call-journey/main/README.md
-Release v1.0.1 files:
-  A) ServiceNow update set: https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/download/v1.0.1/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.0.1.xml
-  B) Dynamics 365 solution: https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/download/v1.0.1/D365ContactCenter_ServiceNow_CallJourney_1_0_0_0.zip
+Release v1.0.2 files:
+  A) ServiceNow update set: https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/download/v1.0.2/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.0.2.xml
+  B) Dynamics 365 solution: https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/download/v1.0.2/D365ContactCenter_ServiceNow_CallJourney_1_0_1_0.zip
 Read the README first. If the README and this prompt disagree, follow the README and tell me. If a newer release exists, use the files the README names and tell me.
 
 HOW TO WORK
@@ -239,7 +239,7 @@ PHASE 1 - PREFLIGHT
 
 PHASE 2 - SERVICENOW PACKAGE
 1. System Update Sets > Retrieved Update Sets > "Import Update Set from XML" > upload file A.
-2. Open "D365 Contact Center - Call Journey 1.0.1". State must be Loaded and it must list 182 update records.
+2. Open "D365 Contact Center - Call Journey 1.0.2". State must be Loaded and it must list 182 update records.
 3. Click "Preview Update Set" and wait until the state is Previewed. There must be 0 problems. If there is any problem, STOP and show it to me. Do not accept or skip problems.
 4. Click "Commit Update Set" and wait until the state is Committed.
 5. Verify, and report each item: table u_cc_call exists; Script Includes D365CCJourney, D365CCUtil, D365CCPlay and D365CCIcons exist; Scripted REST API "D365 Contact Center" is active with POST /api/global/d365cc/call; OpenFrame configuration "Dynamics 365 Contact Center" exists; UI Action "Open call journey" exists on sn_customerservice_case; UI Action "Recording & transcript" exists on u_cc_call; four Business Rules whose names start with "D365CC" exist.
@@ -287,9 +287,9 @@ Give me a table with every phase and its result, then: (1) anything I still have
 
 ### Step 1 – ServiceNow: import the update set
 
-1. Download [`D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.0.1.xml`](servicenow/package/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.0.1.xml) (use the **Download raw file** button on GitHub).
+1. Download [`D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.0.2.xml`](servicenow/package/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.0.2.xml) (use the **Download raw file** button on GitHub).
 2. In ServiceNow open **System Update Sets → Retrieved Update Sets** and click **Import Update Set from XML**.
-3. Choose the file and click **Upload**. The update set **D365 Contact Center - Call Journey 1.0.1** appears with state *Loaded*.
+3. Choose the file and click **Upload**. The update set **D365 Contact Center - Call Journey 1.0.2** appears with state *Loaded*.
 4. Open it and click **Preview Update Set**. Wait until the state is *Previewed*. There should be **0 problems**.
 5. Click **Commit Update Set**.
 
@@ -322,7 +322,7 @@ Dynamics 365 uses this user to send calls to ServiceNow.
 ### Step 4 – Dynamics 365: import the solution
 
 1. Go to <https://make.powerapps.com>, pick your **Dynamics 365 Contact Center environment**, then **Solutions → Import solution**.
-2. Choose [`D365ContactCenter_ServiceNow_CallJourney_1_0_0_0.zip`](dynamics365/D365ContactCenter_ServiceNow_CallJourney_1_0_0_0.zip) and click **Next**.
+2. Choose [`D365ContactCenter_ServiceNow_CallJourney_1_0_1_0.zip`](dynamics365/D365ContactCenter_ServiceNow_CallJourney_1_0_1_0.zip) and click **Next**.
 3. On the connections page, **create or choose a Microsoft Dataverse connection** for *D365 Contact Center - Dataverse*, and fill the three environment variables:
 
    | Variable | Value |
@@ -489,6 +489,8 @@ Times inside the Call Journey card and the call picker are shown in each agent's
 * **ServiceNow:** deactivate the Business Rules *D365CC – …*, the OpenFrame configuration and the Scripted REST API *D365 Contact Center*. The table `u_cc_call` and its data can stay; delete it only if you do not need the call history.
 
 ## Notes and limits
+
+* **Short calls (fixed in 1.0.2).** Earlier versions missed calls that ended within about a minute, because the accept flow only looked at calls still open when it ran, so no Case was created. From 1.0.2 the flow also looks at ended calls from the last 30 minutes, and the ServiceNow service gives a call that was synced first its Case. If you installed an earlier version, import the new update set and solution (see Step 1 and Step 4).
 
 * **Icons.** The card uses [Fluent System Icons](https://github.com/microsoft/fluentui-system-icons) (MIT), embedded inline so they survive ServiceNow's rich-text sanitizer. Regenerate with `node deploy/tools/fetch-icons.mjs`.
 * **Case tab strip.** The Workspace tab strip (SLAs, Tasks, Emails…) is configured in UI Builder, not by related-list records, so a *Contact Center Calls* tab has to be added there by hand if you want one. The Case **Open call journey** button already reaches every call.

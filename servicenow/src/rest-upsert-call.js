@@ -21,32 +21,44 @@
     gr.setLimit(1);
     gr.query();
 
-    // Agent accepted a call that has no Case yet: create it (the IVR normally does this, but not for direct calls).
-    if ((body.create_case === true || body.create_case === 'true') && !gr.hasNext() && (!body.agent_connected || String(body.d365_channel || '192440000') !== '192440000')) return { skipped: 'not an accepted voice call yet' };
-    if ((body.create_case === true || body.create_case === 'true') && gr.hasNext()) return { exists: true, conversation_id: convId };
-    var caseCreated = '';
-    if (!gr.hasNext() && (body.create_case === true || body.create_case === 'true')) {
+    // Agent accepted a call: make sure it has a Case (the IVR normally creates it, but not for direct calls).
+    var wantCase = (body.create_case === true || body.create_case === 'true');
+    if (wantCase && !gr.hasNext() && (!body.agent_connected || String(body.d365_channel || '192440000') !== '192440000')) return { skipped: 'not an accepted voice call yet' };
+
+    function ensureCase() {
         var existingCase = new GlideRecord('sn_customerservice_case');
         existingCase.addQuery('u_d365_conversation_id', convId);
         existingCase.setLimit(1);
         existingCase.query();
-        if (!existingCase.next()) {
-            var contactId = new D365CCUtil().findOrCreateContact(body.contact_name, body.contact_email, body.caller_phone);
-            var nc = new GlideRecord('sn_customerservice_case');
-            nc.initialize();
-            nc.short_description = 'Inbound call' + (body.contact_name ? ' from ' + body.contact_name : '') + (body.subject ? ' - ' + body.subject : '');
-            nc.description = 'Case created automatically when an agent accepted a Dynamics 365 Contact Center call.';
-            nc.contact_type = 'phone';
-            if (contactId) nc.contact = contactId;
-            nc.u_d365_conversation_id = convId;
-            caseCreated = nc.insert();
-        }
+        if (existingCase.next()) return { id: existingCase.getUniqueValue(), created: false };
+        var contactId = new D365CCUtil().findOrCreateContact(body.contact_name, body.contact_email, body.caller_phone);
+        var nc = new GlideRecord('sn_customerservice_case');
+        nc.initialize();
+        nc.short_description = 'Inbound call' + (body.contact_name ? ' from ' + body.contact_name : '') + (body.subject ? ' - ' + body.subject : '');
+        nc.description = 'Case created automatically when an agent accepted a Dynamics 365 Contact Center call.';
+        nc.contact_type = 'phone';
+        if (contactId) nc.contact = contactId;
+        nc.u_d365_conversation_id = convId;
+        return { id: nc.insert(), created: true };
+    }
+
+    // The call row can exist before the accept flow runs (a short call is synced when it ends). Give it its Case.
+    if (wantCase && gr.next()) {
+        if (gr.getValue('u_case')) return { exists: true, conversation_id: convId };
+        var late = ensureCase();
+        gr.u_case = late.id;
+        gr.update();
+        return { exists: true, case_linked: String(late.id), case_created: String(late.created ? late.id : ''), conversation_id: convId };
+    }
+    var caseCreated = '';
+    if (wantCase && !gr.hasNext()) {
+        var made = ensureCase();
+        if (made.created) caseCreated = made.id;
         gr = new GlideRecord('u_cc_call');
         gr.addQuery('u_conversation_id', convId);
         gr.setLimit(1);
         gr.query();
-    }
-    var created = false;
+    }    var created = false;
     if (!gr.next()) {
         gr.initialize();
         gr.u_conversation_id = convId;
