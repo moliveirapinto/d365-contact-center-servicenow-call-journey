@@ -18,16 +18,20 @@ const BR_SOFTPHONE = `(function executeRule(current, previous) {
     }
 })(current, previous);`;
 export default async function cti() {
-    // Copilot Service admin center > Your default contact center > Conversation widget > "Embeddable conversation widget URL"
+    // D365_WIDGET=edge uses the new Contact Center Edge desktop through the d365cc_edge host page (step 08-edge).
+    // Otherwise: Copilot Service admin center > Your default contact center > Conversation widget > "Embeddable conversation widget URL"
     const portal = process.env.D365_WIDGET_URL ||
-        `https://ccaas-embed-prod.azureedge.net/widget/index.html?dynamicsUrl=${cfg.d365Url}`;
+        (String(process.env.D365_WIDGET || '').toLowerCase() === 'edge'
+            ? `https://${cfg.instance}/d365cc_edge.do`
+            : `https://ccaas-embed-prod.azureedge.net/widget/index.html?dynamicsUrl=${cfg.d365Url}`);
 
+    const isEdge = portal.indexOf('/d365cc_edge.do') > 0;
     const id = await upsert('sn_openframe_configuration', 'name=Dynamics 365 Contact Center', {
         name: 'Dynamics 365 Contact Center',
         title: 'Dynamics 365 Contact Center',
         subtitle: 'Voice and messaging',
         url: portal,
-        width: '400',
+        width: isEdge ? '480' : '400',
         height: '700',
         order: '100',
         active: 'true',
