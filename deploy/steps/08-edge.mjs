@@ -1,9 +1,9 @@
-import { upsert, log } from '../lib.mjs';
+import { upsert, find, api, log } from '../lib.mjs';
 
 // The new Dynamics 365 Contact Center Edge desktop (Pulse portal) only starts when its parent frame answers
 // its postMessage handshake (d365edge:ping -> d365edge:init). In Salesforce Microsoft's d365EdgeContainer LWC
 // does that; here a small ServiceNow page plays the same role and OpenFrame shows that page.
-const HOST_SCRIPT = `(function () {
+export const HOST_SCRIPT = `(function () {
     var VERSION = 1;
     var root = document.getElementById('d365cc_edge');
     if (!root) return;
@@ -140,7 +140,7 @@ const HOST_SCRIPT = `(function () {
         }
     });
 
-    if (!orgUrl) { setStatus('Set the system property d365cc.org_url to your Dynamics 365 URL.'); return; }
+    if (!orgUrl || orgUrl.indexOf('YOURORG') >= 0) { setStatus('Set the system property d365cc.org_url to your Dynamics 365 URL.'); return; }
     var url = new URL(edgeUrl);
     url.searchParams.set('orgUrl', orgUrl);
     url.searchParams.set('embedded', 'true');
@@ -154,9 +154,9 @@ const HOST_SCRIPT = `(function () {
     iframe.addEventListener('load', function () { setTimeout(sendInit, 300); });
 })();`;
 
-const PAGE = `<?xml version="1.0" encoding="utf-8" ?>
+export const PAGE = `<?xml version="1.0" encoding="utf-8" ?>
 <j:jelly trim="false" xmlns:j="jelly:core" xmlns:g="glide" xmlns:j2="null" xmlns:g2="null">
-<g:evaluate var="jvar_org" jelly="true">String(gs.getProperty('d365cc.org_url', '') || '');</g:evaluate>
+<g:evaluate var="jvar_org" jelly="true">var o = String(gs.getProperty('d365cc.org_url', '') || ''); o.indexOf('YOURORG') >= 0 ? '' : o;</g:evaluate>
 <g:evaluate var="jvar_edge" jelly="true">String(gs.getProperty('d365cc.edge_url', 'https://portal.us.contactcenterai.powerplatform.com/experience/agent') || '');</g:evaluate>
 <g:evaluate var="jvar_layout" jelly="true">String(gs.getProperty('d365cc.edge_layout', 'compact') || 'compact');</g:evaluate>
 <html>
@@ -173,12 +173,25 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
 <body>
 <div id="d365cc_status">Loading Dynamics 365 Contact Center...</div>
 <div id="d365cc_edge" data-org-url="\${jvar_org}" data-edge-url="\${jvar_edge}" data-layout="\${jvar_layout}"></div>
-<script src="/d365cc_edge_host.jsdbx"></script>
+<g:requires name="d365cc_edge_host.jsdbx"/>
 </body>
 </html>
 </j:jelly>`;
 
+export const EDGE_PROPERTIES = [
+    { name: 'd365cc.edge_url', value: 'https://portal.us.contactcenterai.powerplatform.com/experience/agent', type: 'string',
+      description: 'Dynamics 365 Contact Center Edge portal (Pulse) URL for your region. The softphone page /d365cc_edge.do frames it.' },
+    { name: 'd365cc.edge_layout', value: 'compact', type: 'string',
+      description: 'Edge layout preset: compact (header with outbound call, presence and Copilot), embedded (no header), full or minimal.' }
+];
+
 export default async function edge() {
+    for (const p of EDGE_PROPERTIES) {
+        const existing = await find('sys_properties', `name=${p.name}`, 'sys_id,value');
+        // Keep a value the admin already chose; only fill in missing properties.
+        if (existing) await api('PATCH', `/api/now/table/sys_properties/${existing.sys_id}`, { description: p.description, type: p.type });
+        else await api('POST', '/api/now/table/sys_properties', p);
+    }
     await upsert('sys_ui_script', 'name=d365cc_edge_host', {
         name: 'd365cc_edge_host', script: HOST_SCRIPT, global: 'false', active: 'true', ui_type: '10',
         description: 'Hosts the Dynamics 365 Contact Center Edge desktop and answers its postMessage handshake (used by the d365cc_edge page).'

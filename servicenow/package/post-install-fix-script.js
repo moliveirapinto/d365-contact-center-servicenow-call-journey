@@ -15,7 +15,7 @@
     // 1. Settings
     var org = gs.getProperty('d365cc.org_url', '');
     var ready = org && org.indexOf('YOURORG') < 0;
-    if (!ready) out('ACTION NEEDED: set system property d365cc.org_url to your Dynamics 365 URL (and d365cc.app_id), then run this script again to create the softphone.');
+    if (!ready) out('ACTION NEEDED: set system property d365cc.org_url to your Dynamics 365 URL (and d365cc.app_id). The softphone shows a reminder until it is set.');
 
     // 2. Form layouts: [caption, elements]. The first section has no caption.
     var sections = [
@@ -80,14 +80,13 @@
     }
     out('Related lists added to Case and Customer Contact.');
 
-    // 4. Softphone (OpenFrame)
-    if (ready && GlideTableDescriptor.isValid('sn_openframe_configuration')) {
-        var portal = 'https://ccaas-embed-prod.azureedge.net/widget/index.html?dynamicsUrl=' + org.replace(/\/$/, '');
+    // 4. Softphone (OpenFrame): the Dynamics 365 Contact Center Edge desktop through the page /d365cc_edge.do
+    if (GlideTableDescriptor.isValid('sn_openframe_configuration')) {
         var of = new GlideRecord('sn_openframe_configuration');
         of.addQuery('name', 'Dynamics 365 Contact Center'); of.query();
         if (!of.next()) { of.initialize(); of.setValue('name', 'Dynamics 365 Contact Center'); }
-        of.setValue('title', 'Dynamics 365 Contact Center'); of.setValue('subtitle', 'Voice and messaging'); of.setValue('url', portal);
-        of.setValue('width', '400'); of.setValue('height', '700'); of.setValue('order', '100'); of.setValue('active', true); of.setValue('default', true);
+        of.setValue('title', 'Dynamics 365 Contact Center'); of.setValue('subtitle', 'Voice and messaging'); of.setValue('url', '/d365cc_edge.do');
+        of.setValue('width', '480'); of.setValue('height', '700'); of.setValue('order', '100'); of.setValue('active', true); of.setValue('default', true);
         of.setValue('show_presence_indicator', false); of.setValue('collapsed_view_enabled', false); of.setValue('enforce_sandbox_restrictions', false);
         if (of.isNewRecord()) of.insert(); else of.update();
         var role = new GlideRecord('sys_user_role');
@@ -95,8 +94,8 @@
             var has = new GlideRecord('sys_user_has_role'); has.addQuery('user', gs.getUserID()); has.addQuery('role', role.getUniqueValue()); has.query();
             if (!has.next()) { has.initialize(); has.setValue('user', gs.getUserID()); has.setValue('role', role.getUniqueValue()); has.insert(); }
         }
-        out('Softphone configured. Give the role sn_openframe_user to every agent who should see it.');
-    } else if (ready) {
+        out('Softphone configured. Give the role sn_openframe_user to every agent who should see it, then open /cache.do once and hard-refresh the Workspace.');
+    } else {
         out('OpenFrame is not available on this instance; skipped the softphone.');
     }
     out('Done.');
