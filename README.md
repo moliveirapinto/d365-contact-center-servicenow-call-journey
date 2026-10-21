@@ -221,7 +221,7 @@ The older embeddable conversation widget (`ccaas-embed-prod.azureedge.net`) stil
 
 ## Let an AI assistant install it for you
 
-This is the third step, after you have a ServiceNow instance (see the section above). The update set installs the Dynamics 365 Contact Center panel (Edge desktop) too, so you do not need the connector prompt first. Copy the whole prompt below into an AI assistant that can work in a browser and/or run commands (for example **Claude** with computer or browser use, **Claude Code**, or a similar agent). It will ask you a few questions, install both packages, check every step, and report back. If your assistant cannot operate a browser, the prompt switches it to a guided mode where it walks you through each click.
+You do not need an instance first: if you have none, the assistant gets you a free one (PHASE 0B). The update set installs the Dynamics 365 Contact Center panel (Edge desktop) too, so you do not need the connector prompt first. Copy the whole prompt below into an AI assistant that can work in a browser and/or run commands (for example **Claude** with computer or browser use, **Claude Code**, or a similar agent). It will ask you a few questions, install both packages, check every step, and report back. If your assistant cannot operate a browser, the prompt switches it to a guided mode where it walks you through each click.
 
 **You stay in control:** you sign in yourself (including MFA), and the assistant stops and asks whenever something is not as expected.
 
@@ -248,13 +248,26 @@ HOW TO WORK
 - After each phase give me one or two lines of status (OK / WARNING / FAILED) before you continue.
 
 PHASE 0 - QUESTIONS (ask all in one message, then wait)
-1. ServiceNow instance host name, for example dev12345.service-now.com.
+1. ServiceNow instance host name, for example dev12345.service-now.com, or "I don't have one yet" (then you get one for me in PHASE 0B).
 2. Is this a non-production instance? If it is production, warn me and continue only after I answer an explicit "yes, production".
 3. Dynamics 365 Contact Center environment URL (for example https://contoso.crm.dynamics.com) and the environment's name as shown in Power Apps.
 4. Optional: the Dynamics 365 Contact Center app id (leave blank if I do not know it).
 5. Time zone (IANA name, for example America/New_York) and a short label (for example ET) for call titles.
 6. Besides me, which ServiceNow users should see the softphone (user names or e-mails)? "None" is fine.
 7. Confirm I can sign in to: (a) ServiceNow as an admin, (b) Power Apps with an account that can import solutions and create connections in that environment.
+
+PHASE 0B - GET A FREE SERVICENOW INSTANCE (only if I said I have none; otherwise skip)
+ServiceNow has no public trial. Use ROUTE B first (it includes Customer Service Management and is usually instant); use ROUTE A only if I ask for it.
+ROUTE B - ServiceNow University lab instance:
+1. Open https://learning.servicenow.com. I create the free account and sign in (verification e-mail, password and any MFA are mine; tell me when you need me, then wait).
+2. Search the catalog for "Customer Service Management (CSM) Essentials" (latest release listed) and enrol in the free on-demand course.
+3. Open the course's lab and start the lab instance. The page shows the instance address and an admin login. Note the host name (for example nowlearning-xxxx.lab.service-now.com). Never ask me to paste the password into this chat; I type it in the browser.
+4. Tell me the lab is temporary (about a week) and that I must ask for a new one when it expires.
+ROUTE A - Personal Developer Instance:
+1. https://developer.servicenow.com > Sign up and start building > verify the e-mail > sign in > accept the terms > Request an instance (latest release).
+2. At busy times there is a waitlist (hours or days) and ServiceNow e-mails me when it is ready, so tell me to come back then. A PDI is reclaimed after 10 days of inactivity.
+3. A PDI may not include CSM: in the instance go to All > System Applications > All Available Applications > All, search "Customer Service" and "CSM/FSM Configurable Workspace" and Install them if missing.
+Either route: check that https://<host>/now/cwf/agent/home shows the Customer Service Workspace. Testing only, no real customer data.
 
 PHASE 1 - PREFLIGHT
 1. Download files A and B. Check A is well-formed XML containing 186 sys_update_xml elements, and B is a valid zip containing solution.xml, customizations.xml and exactly two .json files under Workflows/. Expected sizes: A 571,510 bytes, B 8,122 bytes (they differ only if the README names newer files).
