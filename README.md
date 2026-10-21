@@ -257,7 +257,7 @@ PHASE 0 - QUESTIONS (ask all in one message, then wait)
 7. Confirm I can sign in to: (a) ServiceNow as an admin, (b) Power Apps with an account that can import solutions and create connections in that environment.
 
 PHASE 0B - GET A FREE SERVICENOW INSTANCE (only if I said I have none; otherwise skip)
-ServiceNow has no public trial. Use ROUTE B first (it includes Customer Service Management and is usually instant); use ROUTE A only if I ask for it.
+ServiceNow has no public trial. There are two free routes. Try ROUTE B first (it includes Customer Service Management and is usually instant). If ROUTE B fails or is unavailable (course not found, lab will not start, no instance address shown, or I am not eligible), tell me in one line and switch to ROUTE A without being asked. If ROUTE A is on a waitlist, tell me to come back when ServiceNow e-mails me, and you can still prepare everything else meanwhile (download files, read the README).
 ROUTE B - ServiceNow University lab instance:
 1. Open https://learning.servicenow.com. I create the free account and sign in (verification e-mail, password and any MFA are mine; tell me when you need me, then wait).
 2. Search the catalog for "Customer Service Management (CSM) Essentials" (latest release listed) and enrol in the free on-demand course.
