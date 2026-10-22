@@ -1,4 +1,4 @@
-import { upsert, find, log } from '../lib.mjs';
+import { upsert, find, log, MODE } from '../lib.mjs';
 
 // The Activity/journey card is an HTML field, which cannot run scripts, so its buttons cannot open a modal
 // directly. Instead a button opens this small page, which stores a one-time request for the signed-in user and
@@ -160,17 +160,23 @@ export const CASE_OPEN = `function onClick(g_form) {
     });
 }`;
 
+// Classic (non-Workspace) forms: the same button opens the call list of the record.
+const CLASSIC_JOURNEY = `function d365ccJourney() {
+    g_navigation.open('/u_cc_call_list.do?sysparm_query=u_case=' + g_form.getUniqueValue());
+}`;
+
 const PAGE = `<?xml version="1.0" encoding="utf-8" ?>
 <j:jelly trim="false" xmlns:j="jelly:core" xmlns:g="glide" xmlns:j2="null" xmlns:g2="null">
 <g:evaluate var="jvar_dest" jelly="true"><![CDATA[
-    var dest = '/now/cwf/agent/home';
+    var util = new D365CCUtil();
+    var dest = util.mode() === 'itsm' ? '/' : '/now/cwf/agent/home';
     var callId = String(RP.getParameterValue('sysparm_call') || '');
     var caseId = String(RP.getParameterValue('sysparm_case') || '');
     var ok = /^[0-9a-f]{32}$/;
     var fromCase = String(RP.getParameterValue('sysparm_from') || '');
     var param = '', id = '', table = '';
     if (ok.test(callId)) { param = 'sysparm_call'; id = callId; table = 'u_cc_call'; }
-    else if (ok.test(caseId)) { param = 'sysparm_case'; id = caseId; table = 'sn_customerservice_case'; }
+    else if (ok.test(caseId)) { param = 'sysparm_case'; id = caseId; table = new D365CCUtil().recordTable(); }
     if (id) {
         var pr = new GlideRecord('sys_user_preference');
         pr.addQuery('user', gs.getUserID());
@@ -179,8 +185,8 @@ const PAGE = `<?xml version="1.0" encoding="utf-8" ?>
         if (!pr.next()) { pr.initialize(); pr.setValue('user', gs.getUserID()); pr.setValue('name', 'd365cc.play'); pr.setValue('type', 'string'); }
         pr.setValue('value', param + '|' + id + '|' + new GlideDateTime().getNumericValue());
         if (pr.isNewRecord()) pr.insert(); else pr.update();
-        dest = '/now/cwf/agent/record/' + table + '/' + id;
-        if (param === 'sysparm_call' && ok.test(fromCase)) dest = '/now/cwf/agent/record/sn_customerservice_case/' + fromCase;
+        dest = util.recordPath(table, id);
+        if (param === 'sysparm_call' && ok.test(fromCase)) dest = util.recordPath(util.recordTable(), fromCase);
     }
     dest;
 ]]></g:evaluate>
@@ -204,10 +210,10 @@ const CLIENT = `function onLoad() {
 
 
 export default async function play() {
-    await upsert('sys_ui_action', 'name=Open call journey^table=sn_customerservice_case', {
-        name: 'Open call journey', table: 'sn_customerservice_case', action_name: 'open_call_journey', active: 'true',
+    await upsert('sys_ui_action', 'name=Open call journey^table=' + MODE.record, {
+        name: 'Open call journey', table: MODE.record, action_name: 'open_call_journey', active: 'true',
         client: 'true', form_button: 'true', form_button_v2: 'true', format_for_configurable_workspace: 'true',
-        isolate_script: 'true', show_insert: 'false', show_update: 'true', order: '390', onclick: '', script: '',
+        isolate_script: 'true', show_insert: 'false', show_update: 'true', order: '390', onclick: 'd365ccJourney();', script: CLASSIC_JOURNEY,
         client_script_v2: CASE_OPEN, hint: 'Open the call journey in a sub tab'
     });
     await upsert('sys_script_include', 'name=D365CCPlay', {
@@ -216,7 +222,7 @@ export default async function play() {
     });
     await upsert('sys_ui_page', 'name=d365cc_calls', { name: 'd365cc_calls', html: PICKER.replace(/^<\?xml[^>]*\?>\s*/, ''), direct: 'false', category: 'general' });
     await upsert('sys_ui_page', 'name=d365cc_play', { name: 'd365cc_play', html: PAGE.replace(/^<\?xml[^>]*\?>\s*/, ''), direct: 'false', category: 'general' });
-    for (const table of ['u_cc_call', 'sn_customerservice_case']) {
+    for (const table of ['u_cc_call', MODE.record]) {
         await upsert('sys_script_client', `name=D365CC open recording^table=${table}`, {
             name: 'D365CC open recording', table, type: 'onLoad', active: 'true', global: 'true', ui_type: '10', script: CLIENT
         });

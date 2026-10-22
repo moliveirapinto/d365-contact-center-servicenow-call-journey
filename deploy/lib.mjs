@@ -23,6 +23,23 @@ export const cfg = {
     timezoneLabel: process.env.TIMEZONE_LABEL || ''
 };
 
+// D365_MODE=csm (default): Customer Service Management, Cases and customer contacts.
+// D365_MODE=itsm: ITSM only, Incidents and ServiceNow users (sys_user) as the customers.
+const MODES = {
+    csm: {
+        record: 'sn_customerservice_case', recordLabel: 'Case', customer: 'customer_contact', customerLabel: 'Customer Contact',
+        customerField: 'contact', account: 'customer_account', agentRole: 'sn_customerservice_agent', createCustomer: 'true',
+        recordUrl: '/now/cwf/agent/record/{table}/{id}'
+    },
+    itsm: {
+        record: 'incident', recordLabel: 'Incident', customer: 'sys_user', customerLabel: 'User', customerField: 'caller_id',
+        account: 'core_company', agentRole: 'itil', createCustomer: 'false',
+        recordUrl: '/now/nav/ui/classic/params/target/{table}.do%3Fsys_id%3D{id}'
+    }
+};
+export const MODE = { name: String(process.env.D365_MODE || 'csm').toLowerCase() === 'itsm' ? 'itsm' : 'csm' };
+Object.assign(MODE, MODES[MODE.name]);
+
 if (!cfg.instance || !cfg.user || !cfg.pass) {
     throw new Error('Set SN_INSTANCE, SN_USER and SN_PASS (see .env.example).');
 }
@@ -46,6 +63,11 @@ export async function api(method, urlPath, body) {
         }
     }
     const text = await res.text();
+    // A hibernating lab instance answers 502/503/504 from its wake-up page for a few minutes: wait and retry.
+    if ([502, 503, 504].includes(res.status) && !(arguments[3] > 40)) {
+        await new Promise((r) => setTimeout(r, 15000));
+        return api(method, urlPath, body, (arguments[3] || 0) + 1);
+    }
     let json;
     try { json = text ? JSON.parse(text) : {}; } catch { json = { raw: text }; }
     if (!res.ok) {

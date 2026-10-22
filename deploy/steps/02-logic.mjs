@@ -1,7 +1,8 @@
-import { api, find, upsert, readSrc, log } from '../lib.mjs';
+import { api, find, upsert, readSrc, log, MODE } from '../lib.mjs';
 
 const CALL = 'u_cc_call';
-const CASE = 'sn_customerservice_case';
+const CASE = MODE.record;
+const CUST = MODE.customerField;
 
 const BR_CALC = `(function executeRule(current, previous) {
     var util = new D365CCUtil();
@@ -27,7 +28,7 @@ const BR_CALC = `(function executeRule(current, previous) {
     // Inherit the customer from the Case when the call has none
     if (current.u_contact.nil() && !current.u_case.nil()) {
         var cs = new GlideRecord('${CASE}');
-        if (cs.get(current.getValue('u_case'))) current.u_contact = cs.getValue('contact');
+        if (cs.get(current.getValue('u_case'))) current.u_contact = cs.getValue('${CUST}');
     }
 })(current, previous);`;
 
@@ -56,15 +57,15 @@ const BR_CASE = `(function executeRule(current, previous) {
         call.initialize();
         call.u_conversation_id = convId;
         call.u_case = current.getUniqueValue();
-        call.u_contact = current.getValue('contact');
+        call.u_contact = current.getValue('${CUST}');
         call.u_call_received = current.getValue('sys_created_on');
         call.u_title = util.titleFor(current.getValue('sys_created_on'));
         call.u_channel = 'Voice call';
         call.u_direction = 'Inbound';
         call.u_handled_by_virtual_agent = true;
         call.u_status = 'In progress';
-        if (!current.contact.nil()) {
-            call.u_caller_phone = current.contact.mobile_phone.toString() || current.contact.phone.toString();
+        if (!current.${CUST}.nil()) {
+            call.u_caller_phone = current.${CUST}.mobile_phone.toString() || current.${CUST}.phone.toString();
         }
         call.insert();
     } catch (e) {

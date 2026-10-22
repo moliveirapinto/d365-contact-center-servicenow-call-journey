@@ -1,14 +1,14 @@
-import { api, find, upsert, enc, cfg, log } from '../lib.mjs';
+import { api, find, upsert, enc, cfg, log, MODE } from '../lib.mjs';
 
 const T = 'u_cc_call';
-const CASE = 'sn_customerservice_case';
+const CASE = MODE.record;
 
 // [element, label, type, maxLength, extras]
 const CALL_COLUMNS = [
     ['u_title', 'Call', 'string', 255],
     ['u_status', 'Call Status', 'string', 40, { choices: ['In progress', 'Completed'], default: 'In progress' }],
-    ['u_case', 'Case', 'reference', 32, { reference: CASE }],
-    ['u_contact', 'Customer', 'reference', 32, { reference: 'customer_contact' }],
+    ['u_case', MODE.recordLabel, 'reference', 32, { reference: CASE }],
+    ['u_contact', 'Customer', 'reference', 32, { reference: MODE.customer }],
     ['u_conversation_id', 'D365 Conversation ID', 'string', 40, { unique: true }],
     ['u_channel', 'Channel', 'string', 40],
     ['u_direction', 'Direction', 'string', 40],
@@ -82,7 +82,7 @@ export default async function schema() {
     // 1. The call table
     let tbl = await find('sys_db_object', `name=${T}`);
     if (!tbl) {
-        const role = await find('sys_user_role', 'name=sn_customerservice_agent');
+        const role = await find('sys_user_role', 'name=' + MODE.agentRole);
         tbl = await api('POST', '/api/now/table/sys_db_object', {
             name: T,
             label: 'Contact Center Call',
@@ -116,6 +116,23 @@ export default async function schema() {
         ['d365cc.time_zone', cfg.timezone, 'IANA time zone used for call titles, e.g. America/New_York'],
         ['d365cc.time_zone_label', cfg.timezoneLabel, 'Short label shown at the end of call titles, e.g. ET']
     ];
+    // Install mode. Written once at install time; the logic reads these instead of hard-coding CSM tables.
+    const modeProps = [
+        ['d365cc.mode', MODE.name, 'csm = Customer Service Management (Cases, customer contacts). itsm = ITSM only (Incidents, users).'],
+        ['d365cc.record_table', MODE.record, 'Table that receives one record per accepted call'],
+        ['d365cc.record_label', MODE.recordLabel, 'Label of that record (Case or Incident)'],
+        ['d365cc.customer_table', MODE.customer, 'Table searched to identify the caller (phone, e-mail, name)'],
+        ['d365cc.customer_field', MODE.customerField, 'Field on the record that holds the caller'],
+        ['d365cc.account_table', MODE.account, 'Table opened when Dynamics 365 identifies an account'],
+        ['d365cc.create_customer', MODE.createCustomer, 'true = create a customer contact when nobody matches. Always false in itsm mode.'],
+        ['d365cc.record_url', MODE.recordUrl, 'Link template for opening records in the agent interface. Use {table} and {id}, e.g. /now/sow/record/{table}/{id}']
+    ];
+    for (const [name, value, description] of modeProps) {
+        const existing = await find('sys_properties', 'name=' + name, 'sys_id');
+        // Keep a value an admin already chose (for example record_url).
+        if (existing) await api('PATCH', '/api/now/table/sys_properties/' + existing.sys_id, { description });
+        else await api('POST', '/api/now/table/sys_properties', { name, value, description, type: 'string', suffix: 'd365cc' });
+    }
     for (const [name, value, description] of props) {
         await upsert('sys_properties', `name=${name}`, { name, value, description, type: 'string', suffix: 'd365cc' });
     }

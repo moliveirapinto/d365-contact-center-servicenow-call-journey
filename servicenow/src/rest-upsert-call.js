@@ -16,6 +16,9 @@
     ];
     var DATES = { u_call_received: 1, u_agent_connected: 1, u_call_ended: 1, u_quality_evaluated_at: 1 };
 
+    // The record created per call is a Case (CSM mode) or an Incident (ITSM mode); see the d365cc.mode property.
+    var util = new D365CCUtil();
+    var RECORD = util.recordTable();
     var gr = new GlideRecord('u_cc_call');
     gr.addQuery('u_conversation_id', convId);
     gr.setLimit(1);
@@ -26,18 +29,19 @@
     if (wantCase && !gr.hasNext() && (!body.agent_connected || String(body.d365_channel || '192440000') !== '192440000')) return { skipped: 'not an accepted voice call yet' };
 
     function ensureCase() {
-        var existingCase = new GlideRecord('sn_customerservice_case');
+        var existingCase = new GlideRecord(RECORD);
         existingCase.addQuery('u_d365_conversation_id', convId);
         existingCase.setLimit(1);
         existingCase.query();
         if (existingCase.next()) return { id: existingCase.getUniqueValue(), created: false };
-        var contactId = new D365CCUtil().findOrCreateContact(body.contact_name, body.contact_email, body.caller_phone);
-        var nc = new GlideRecord('sn_customerservice_case');
+        var contactId = util.findOrCreateContact(body.contact_name, body.contact_email, body.caller_phone);
+        var nc = new GlideRecord(RECORD);
         nc.initialize();
         nc.short_description = 'Inbound call' + (body.contact_name ? ' from ' + body.contact_name : '') + (body.subject ? ' - ' + body.subject : '');
-        nc.description = 'Case created automatically when an agent accepted a Dynamics 365 Contact Center call.';
+        nc.description = util.prop('record_label', 'Case') + ' created automatically when an agent accepted a Dynamics 365 Contact Center call.' +
+            (contactId ? '' : '\nCaller: ' + (body.contact_name || 'unknown') + (body.caller_phone ? ', ' + body.caller_phone : '') + (body.contact_email ? ', ' + body.contact_email : ''));
         nc.contact_type = 'phone';
-        if (contactId) nc.contact = contactId;
+        if (contactId) nc.setValue(util.customerField(), contactId);
         nc.u_d365_conversation_id = convId;
         return { id: nc.insert(), created: true };
     }
@@ -58,14 +62,15 @@
         gr.addQuery('u_conversation_id', convId);
         gr.setLimit(1);
         gr.query();
-    }    var created = false;
+    }
+    var created = false;
     if (!gr.next()) {
         gr.initialize();
         gr.u_conversation_id = convId;
         gr.u_channel = 'Voice call';
         gr.u_direction = 'Inbound';
         // If the IVR already created the Case, link it.
-        var cs = new GlideRecord('sn_customerservice_case');
+        var cs = new GlideRecord(RECORD);
         cs.addQuery('u_d365_conversation_id', convId);
         cs.setLimit(1);
         cs.query();
@@ -86,7 +91,7 @@
     }
 
     // D365 is the source of truth for when the call started, so (re)derive the title from it.
-    if (body.call_received) gr.u_title = new D365CCUtil().titleFor(gr.getValue('u_call_received'));
+    if (body.call_received) gr.u_title = util.titleFor(gr.getValue('u_call_received'));
     var id = created ? gr.insert() : gr.update();
     return { sys_id: String(id || gr.getUniqueValue()), created: created, case_created: String(caseCreated), conversation_id: convId };
 })(request, response);

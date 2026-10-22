@@ -6,6 +6,20 @@ D365CCUtil.prototype = {
         return gs.getProperty('d365cc.' + name, fallback || '');
     },
 
+    // Installation mode, set at install time: 'csm' (Cases and customer contacts) or 'itsm' (Incidents and users).
+    mode: function () { return this.prop('mode', 'csm'); },
+    recordTable: function () { return this.prop('record_table', 'sn_customerservice_case'); },
+    customerTable: function () { return this.prop('customer_table', 'customer_contact'); },
+    customerField: function () { return this.prop('customer_field', 'contact'); },
+    createCustomer: function () { return this.prop('create_customer', 'true') === 'true'; },
+
+    // Link to a record in the agent interface. d365cc.record_url holds a template with {table} and {id}
+    // (for example /now/sow/record/{table}/{id} for the Service Operations Workspace).
+    recordPath: function (table, id) {
+        var tpl = this.prop('record_url', '/now/cwf/agent/record/{table}/{id}');
+        return tpl.replace('{table}', table).replace('{id}', id);
+    },
+
     orgUrl: function () {
         return String(this.prop('org_url') || '').replace(/\/+$/, '');
     },
@@ -42,50 +56,72 @@ D365CCUtil.prototype = {
         return Math.round((b - a) / 1000);
     },
 
-    // Path that opens the call (its Call Journey card, recording and evaluation) in the CSM/FSM Configurable Workspace.
-    // Match a CSM contact by phone (last 10 digits), then e-mail, then name; create one when nothing matches.
-    findOrCreateContact: function (name, email, phone) {
+    // Find a customer by phone (any format, the last 10 digits are compared), then e-mail, then name. Read-only.
+    // table: customer table (default d365cc.customer_table). isAccount: search companies, which only have a phone and a name.
+    // secure: true runs the search with the signed-in user's own access (used by the screen pop page).
+    findCustomer: function (name, email, phone, table, isAccount, secure) {
+        table = table || this.customerTable();
+        var self = this;
+        var open = function () { return secure ? new GlideRecordSecure(table) : new GlideRecord(table); };
         var digits = String(phone || '').replace(/\D/g, '');
-        var tail = digits.length >= 10 ? digits.slice(-10) : '';
+        var tail = digits.length >= 7 ? digits.slice(-10) : '';
         var gr;
         if (tail) {
-            gr = new GlideRecord('customer_contact');
-            var q = gr.addQuery('mobile_phone', 'ENDSWITH', tail.slice(-4));
-            gr.addOrCondition('phone', 'ENDSWITH', tail.slice(-4));
+            gr = open();
+            var last4 = tail.slice(-4);
+            gr.addEncodedQuery(isAccount ? 'phoneENDSWITH' + last4 : 'phoneENDSWITH' + last4 + '^ORmobile_phoneENDSWITH' + last4);
+            gr.setLimit(50);
             gr.query();
             while (gr.next()) {
-                var cand = (gr.getValue('mobile_phone') + gr.getValue('phone')).replace(/\D/g, '');
-                if (cand.indexOf(tail) >= 0) return gr.getUniqueValue();
+                var nums = [gr.getValue('phone')];
+                if (!isAccount) nums.push(gr.getValue('mobile_phone'));
+                for (var i = 0; i < nums.length; i++) {
+                    var d = String(nums[i] || '').replace(/\D/g, '');
+                    if (d.length >= 7 && d.slice(-10) === tail) return gr.getUniqueValue();
+                }
             }
         }
-        if (email) {
-            gr = new GlideRecord('customer_contact');
+        if (email && !isAccount) {
+            gr = open();
             gr.addQuery('email', email);
             gr.setLimit(1);
             gr.query();
             if (gr.next()) return gr.getUniqueValue();
         }
-        var parts = String(name || '').trim().split(/\s+/);
-        if (parts[0]) {
-            gr = new GlideRecord('customer_contact');
-            gr.addQuery('first_name', parts[0]);
-            if (parts.length > 1) gr.addQuery('last_name', parts.slice(1).join(' '));
+        var full = String(name || '').trim();
+        if (full) {
+            gr = open();
+            if (isAccount) {
+                gr.addQuery('name', full);
+            } else {
+                var parts = full.split(/\s+/);
+                gr.addQuery('first_name', parts[0]);
+                if (parts.length > 1) gr.addQuery('last_name', parts.slice(1).join(' '));
+            }
             gr.setLimit(1);
             gr.query();
             if (gr.next()) return gr.getUniqueValue();
-            var nc = new GlideRecord('customer_contact');
-            nc.initialize();
-            nc.first_name = parts[0];
-            nc.last_name = parts.slice(1).join(' ') || '(caller)';
-            if (email) nc.email = email;
-            if (phone) nc.mobile_phone = phone;
-            return nc.insert();
         }
         return '';
     },
 
+    // Match a customer (CSM contact or ITSM user) with findCustomer.
+    // In CSM mode a contact is created when nothing matches; in ITSM mode no user is ever created.
+    findOrCreateContact: function (name, email, phone) {
+        var found = this.findCustomer(name, email, phone);
+        if (found) return found;
+        var parts = String(name || '').trim().split(/\s+/);
+        if (!parts[0] || !this.createCustomer()) return '';
+        var nc = new GlideRecord(this.customerTable());
+        nc.initialize();
+        nc.first_name = parts[0];
+        nc.last_name = parts.slice(1).join(' ') || '(caller)';
+        if (email) nc.email = email;
+        if (phone) nc.mobile_phone = phone;
+        return nc.insert();
+    },
     callPath: function (callSysId) {
-        return '/now/cwf/agent/record/u_cc_call/' + callSysId;
+        return this.recordPath('u_cc_call', callSysId);
     },
 
     // Case activity entry (a work note rendered as HTML by the Activity stream). kind: 'created' | 'completed'

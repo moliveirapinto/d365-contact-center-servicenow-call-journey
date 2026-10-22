@@ -1,4 +1,4 @@
-import { upsert, find, api, log } from '../lib.mjs';
+import { upsert, find, api, log, MODE } from '../lib.mjs';
 
 // Links inside the Activity stream always open in a new browser tab, and that cannot be changed. So the link opens this
 // tiny page, which asks the Workspace tab that is already open (BroadcastChannel) to open the call as a sub tab and
@@ -15,8 +15,9 @@ const PAGE = `<?xml version="1.0" encoding="utf-8" ?>
     if (/^[0-9a-f]{32}$/.test(cid)) { var g = new GlideRecord('u_cc_call'); if (g.get(cid)) cs = String(g.getValue('u_case') || ''); }
     cs;
 ]]></g:evaluate>
+<g:evaluate var="jvar_path" jelly="true">new D365CCUtil().recordPath('u_cc_call', String(jvar_id));</g:evaluate>
 <div id="msg" style="font-family:'Source Sans Pro',Helvetica,Arial,sans-serif;font-size:14px;color:#424242;padding:24px;">Opening call journey...</div>
-<div id="callid" data-id="\${jvar_id}" data-case="\${jvar_case}" style="display:none"></div>
+<div id="callid" data-id="\${jvar_id}" data-path="\${jvar_path}" data-case="\${jvar_case}" style="display:none"></div>
 <script>
 (function () {
     var id = document.getElementById('callid').getAttribute('data-id');
@@ -28,7 +29,7 @@ const PAGE = `<?xml version="1.0" encoding="utf-8" ?>
     };
     bc.postMessage({ call: id, case: document.getElementById('callid').getAttribute('data-case') || '', msg: String(Date.now()) });
     setTimeout(function () {
-        if (!done) { location.replace('/now/cwf/agent/record/u_cc_call/' + id); }
+        if (!done) { location.replace(document.getElementById('callid').getAttribute('data-path')); }
     }, 1800);
 })();
 </script>
@@ -56,13 +57,14 @@ const LISTENER = `function onLoad() {
         try { last = sessionStorage.getItem('d365cc_handled') || ''; } catch (x) { last = seen; }
         if (last === d.msg) return;
         try { sessionStorage.setItem('d365cc_handled', d.msg); } catch (x) { seen = d.msg; }
+        if (typeof g_aw === 'undefined') return;
         g_aw.openRecord('u_cc_call', d.call);
         bc.postMessage({ ack: d.call });
     };
 }`;
 export default async function open() {
     await upsert('sys_ui_page', 'name=d365cc_open', { name: 'd365cc_open', html: PAGE.replace(/^<\?xml[^>]*\?>\s*/, ''), direct: 'false', category: 'general' });
-    for (const table of ['u_cc_call', 'sn_customerservice_case']) {
+    for (const table of ['u_cc_call', MODE.record]) {
         await upsert('sys_script_client', `name=D365CC open call sub tab^table=${table}`, {
             name: 'D365CC open call sub tab', table, type: 'onLoad', active: 'true', global: 'true', ui_type: '10', script: LISTENER
         });

@@ -1,12 +1,11 @@
-import { api, find, upsert, readSrc, log } from '../lib.mjs';
+import { api, find, upsert, readSrc, log, MODE } from '../lib.mjs';
 
 const CALL = 'u_cc_call';
-const CASE = 'sn_customerservice_case';
+const CASE = MODE.record;
 
 const PARAM = { [CALL]: 'sysparm_call', [CASE]: 'sysparm_case' };
 
-const CLASSIC_CLICK = (title, param) => `d365ccOpen();
-function d365ccOpen() {
+const CLASSIC_CLICK = (title, param) => `function d365ccOpen() {
     var dialog = new GlideModal('d365cc_recording', false, '95%');
     dialog.setTitle('${title}');
     dialog.setPreference('${param}', g_form.getUniqueValue());
@@ -30,7 +29,7 @@ async function uiAction({ table, name, title, order, condition, workspaceScript 
         format_for_configurable_workspace: 'true', isolate_script: 'true',
         show_insert: 'false', show_update: 'true', order: String(order),
         condition: condition || '',
-        onclick: CLASSIC_CLICK(title, param).split('\n')[0],
+        onclick: 'd365ccOpen();',
         script: CLASSIC_CLICK(title, param),
         client_script_v2: workspaceScript || WORKSPACE_CLICK(title, param),
         hint: title
@@ -92,6 +91,20 @@ async function placeAfterMain(table, viewName, caption) {
 async function relatedList(table, viewName, relation) {
     const view = viewName ? await find('sys_ui_view', `name=${viewName}`) : null;
     const q = `name=${table}` + (view ? `^view=${view.sys_id}` : '^viewISEMPTY');
+    // ITSM edition: never create a list record (a list with only our entry would hide the standard related lists of
+    // Incident and User). Add the entry to the lists that already exist, in every view.
+    if (MODE.name === 'itsm') {
+        if (viewName) return;
+        const lists = await api('GET', `/api/now/table/sys_ui_related_list?sysparm_query=${encodeURIComponent('name=' + table)}&sysparm_fields=sys_id&sysparm_limit=100`);
+        for (const l of lists) {
+            const entries = await api('GET', `/api/now/table/sys_ui_related_list_entry?sysparm_query=${encodeURIComponent('list_id=' + l.sys_id)}&sysparm_fields=sys_id,related_list,position&sysparm_limit=200`);
+            if (entries.some((e) => e.related_list === relation)) continue;
+            if (!entries.length) continue;
+            const max = entries.reduce((m, e) => Math.max(m, parseInt(e.position || '0', 10)), 0);
+            await api('POST', '/api/now/table/sys_ui_related_list_entry', { list_id: l.sys_id, related_list: relation, position: String(max + 1) });
+        }
+        return;
+    }
     let list = await find('sys_ui_related_list', q);
     if (!list) list = await api('POST', '/api/now/table/sys_ui_related_list', { name: table, ...(view ? { view: view.sys_id } : {}) });
     const entries = await api('GET', `/api/now/table/sys_ui_related_list_entry?sysparm_query=${encodeURIComponent('list_id=' + list.sys_id)}&sysparm_fields=sys_id,related_list,position&sysparm_limit=100`);
@@ -138,7 +151,7 @@ export default async function ui() {
     for (const el of await api('GET', `/api/now/table/sys_ui_element?sysparm_query=${encodeURIComponent('element=u_recording^sys_ui_section.name=' + CALL)}&sysparm_fields=sys_id`)) await api('DELETE', `/api/now/table/sys_ui_element/${el.sys_id}`);
     for (const view of [null, 'workspace']) {
         await relatedList(CASE, view, 'u_cc_call.u_case');
-        await relatedList('customer_contact', view, 'u_cc_call.u_contact');
+        await relatedList(MODE.customer, view, 'u_cc_call.u_contact');
     }
     log('  form layouts + related lists ok');
 }

@@ -5,12 +5,15 @@
  * Run it only to repair an install (it re-creates the form layout, related lists and softphone) and to give yourself the softphone role. It:
  *   1. checks the d365cc.* system properties are filled in
  *   2. makes sure the Contact Center Call form layouts exist (Call Journey card on top)
- *   3. adds the "Contact Center Calls" related lists to Case and Customer Contact
+ *   3. adds the "Contact Center Calls" related lists to the Case (or Incident) and the customer (contact or user)
  *   4. creates the Dynamics 365 Contact Center softphone (OpenFrame) and lets you use it
  */
 (function () {
     var out = function (m) { gs.print('[D365CC] ' + m); };
-    var CALL = 'u_cc_call', CASE = 'sn_customerservice_case';
+    var CALL = 'u_cc_call';
+    // CSM installs use Cases and customer contacts; ITSM-only installs use Incidents and users (d365cc.mode).
+    var CASE = gs.getProperty('d365cc.record_table', 'sn_customerservice_case');
+    var CUSTOMER = gs.getProperty('d365cc.customer_table', 'customer_contact');
 
     // 1. Settings
     var org = gs.getProperty('d365cc.org_url', '');
@@ -59,7 +62,7 @@
     out('Contact Center Call form layouts are in place.');
 
     // 3. Related lists (classic UI)
-    var lists = [[CASE, 'u_cc_call.u_case'], ['customer_contact', 'u_cc_call.u_contact']];
+    var lists = [[CASE, 'u_cc_call.u_case'], [CUSTOMER, 'u_cc_call.u_contact']];
     for (var l = 0; l < lists.length; l++) {
         for (var w = 0; w < views.length; w++) {
             var vid = '';
@@ -78,7 +81,7 @@
             }
         }
     }
-    out('Related lists added to Case and Customer Contact.');
+    out('Related lists added to ' + CASE + ' and ' + CUSTOMER + '.');
 
     // 4. Softphone (OpenFrame): the Dynamics 365 Contact Center Edge desktop through the page /d365cc_edge.do
     if (GlideTableDescriptor.isValid('sn_openframe_configuration')) {

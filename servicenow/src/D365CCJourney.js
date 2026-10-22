@@ -144,7 +144,7 @@ D365CCJourney.prototype = {
         stats = '<div>' + stats + '</div>';
 
         // Play recording / Transcript live in the form header (they open the pop-up with no reload); a link here would reload the Workspace.
-        var actions = (url && !full) ? '<div style="margin-top:4px;">' + this.button('open', 'Call details', '/now/cwf/agent/record/u_cc_call/' + callId, false) + '</div>' : '';
+        var actions = (url && !full) ? '<div style="margin-top:4px;">' + this.button('open', 'Call details', new D365CCUtil().recordPath('u_cc_call', callId), false) + '</div>' : '';
 
         var html = '<div style="font-family:' + this.FONT + ';color:' + C.text + ';">' + header + timeline + stats + actions + '</div>';
         return html;

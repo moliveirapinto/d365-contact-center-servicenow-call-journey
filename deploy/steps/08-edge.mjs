@@ -11,6 +11,7 @@ export const HOST_SCRIPT = `(function () {
     var orgUrl = (root.getAttribute('data-org-url') || '').replace(/\\/+$/, '');
     var layout = root.getAttribute('data-layout') || 'compact';
     var verbose = root.getAttribute('data-verbose') === 'true';
+    var recordUrl = root.getAttribute('data-record-url') || '/now/cwf/agent/record/{table}/{id}';
     var status = document.getElementById('d365cc_status');
     var iframe = null;
     var lockedOrigin = null;
@@ -63,25 +64,17 @@ export const HOST_SCRIPT = `(function () {
             .catch(function () { return {}; })
             .then(function (rec) {
                 rec = rec || {};
-                var q = [];
                 var phone = rec.mobilephone || rec.telephone1;
-                if (phone) q.push('phoneLIKE' + String(phone).replace(/[^0-9]/g, '').slice(-10) + '^ORmobile_phoneLIKE' + String(phone).replace(/[^0-9]/g, '').slice(-10));
-                if (rec.emailaddress1) q.push('email=' + rec.emailaddress1);
                 var name = rec.fullname || rec.name || payload.entityName;
-                if (name) q.push('name=' + name);
-                if (!q.length) return;
-                var table = type === 'account' ? 'customer_account' : 'customer_contact';
-                var tryNext = function (i) {
-                    if (i >= q.length) return;
-                    fetch('/api/now/table/' + table + '?sysparm_limit=1&sysparm_fields=sys_id&sysparm_query=' + encodeURIComponent(q[i]), {
-                        headers: { Accept: 'application/json', 'X-UserToken': window.g_ck || '' }, credentials: 'same-origin'
-                    }).then(function (r) { return r.json(); }).then(function (j) {
-                        var hit = j.result;
-                        if (hit) { if (hit.length) { openRecord(table, hit[0].sys_id); return; } }
-                        tryNext(i + 1);
-                    }).catch(function () { tryNext(i + 1); });
-                };
-                tryNext(0);
+                if (!phone && !rec.emailaddress1 && !name) return;
+                // The match runs on the server (page d365cc_find) with the signed-in agent's own access: phone
+                // (any format, last digits compared), then e-mail, then name.
+                var url = '/d365cc_find.do?type=' + encodeURIComponent(type) + '&phone=' + encodeURIComponent(phone || '') +
+                    '&email=' + encodeURIComponent(rec.emailaddress1 || '') + '&name=' + encodeURIComponent(name || '');
+                fetch(url, { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (html) {
+                    var m = html.match(/id="d365cc_found">([a-z0-9_]+)\\|([0-9a-f]{32})</);
+                    if (m) openRecord(m[1], m[2]);
+                }).catch(function () { });
             });
     }
     var ofReady = false;
@@ -92,11 +85,22 @@ export const HOST_SCRIPT = `(function () {
         if (!ofReady) return;
         try { window.openFrameAPI.show(); } catch (e) { }
     }
+    // The panel is shown for every offered conversation. When the browser tab is hidden or minimized, a system
+    // notification is raised too (the agent has to allow notifications for this instance once).
+    function alertIncoming() {
+        try {
+            if (!window.Notification) return;
+            if (Notification.permission === 'default') { Notification.requestPermission(); return; }
+            if (Notification.permission !== 'granted') return;
+            var n = new Notification('Incoming call', { body: 'A Dynamics 365 Contact Center conversation is waiting for you.', tag: 'd365cc-incoming', requireInteraction: true });
+            n.onclick = function () { try { window.top.focus(); } catch (e) { } showPanel(); n.close(); };
+        } catch (e) { }
+    }
     function openRecord(table, sysId) {
         if (ofReady) {
             try { window.openFrameAPI.openServiceNowForm({ entity: table, query: 'sys_id=' + sysId }); return; } catch (e) { }
         }
-        try { window.top.location.href = '/now/cwf/agent/record/' + table + '/' + sysId; } catch (e) { }
+        try { window.top.location.href = recordUrl.replace('{table}', table).replace('{id}', sysId); } catch (e) { }
     }
 
     window.addEventListener('message', function (e) {
@@ -123,7 +127,7 @@ export const HOST_SCRIPT = `(function () {
                 break;
             case 'd365edge:heartbeat': post({ type: 'd365edge:heartbeat', version: VERSION, callId: d.callId, timestamp: Date.now() }); break;
             case 'd365edge:event':
-                if (d.event === 'conversation.invited') showPanel();
+                if (d.event === 'conversation.invited') { showPanel(); alertIncoming(); }
                 if (d.event === 'screenPop.requested') screenPop(d.data);
                 break;
             case 'd365edge:command:response':
@@ -159,6 +163,7 @@ export const PAGE = `<?xml version="1.0" encoding="utf-8" ?>
 <g:evaluate var="jvar_org" jelly="true">var o = String(gs.getProperty('d365cc.org_url', '') || ''); o.indexOf('YOURORG') >= 0 ? '' : o;</g:evaluate>
 <g:evaluate var="jvar_edge" jelly="true">String(gs.getProperty('d365cc.edge_url', 'https://portal.us.contactcenterai.powerplatform.com/experience/agent') || '');</g:evaluate>
 <g:evaluate var="jvar_layout" jelly="true">String(gs.getProperty('d365cc.edge_layout', 'compact') || 'compact');</g:evaluate>
+<g:evaluate var="jvar_recurl" jelly="true">String(gs.getProperty('d365cc.record_url', '/now/cwf/agent/record/{table}/{id}') || '');</g:evaluate>
 <html>
 <head>
 <title>Dynamics 365 Contact Center</title>
@@ -172,12 +177,28 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: 
 </head>
 <body>
 <div id="d365cc_status">Loading Dynamics 365 Contact Center...</div>
-<div id="d365cc_edge" data-org-url="\${jvar_org}" data-edge-url="\${jvar_edge}" data-layout="\${jvar_layout}"></div>
+<div id="d365cc_edge" data-org-url="\${jvar_org}" data-edge-url="\${jvar_edge}" data-layout="\${jvar_layout}" data-record-url="\${jvar_recurl}"></div>
 <g:requires name="d365cc_edge_host.jsdbx"/>
 </body>
 </html>
 </j:jelly>`;
 
+// Screen pop lookup: runs with the signed-in agent's own access and answers "<table>|<sys_id>" (or nothing).
+// The host page cannot call the Table API itself: it has no session token.
+export const FIND_PAGE = `<?xml version="1.0" encoding="utf-8" ?>
+<j:jelly trim="false" xmlns:j="jelly:core" xmlns:g="glide" xmlns:j2="null" xmlns:g2="null">
+<g:evaluate var="jvar_found" jelly="true"><![CDATA[
+    var util = new D365CCUtil();
+    var isAccount = String(RP.getParameterValue('type') || '').toLowerCase() === 'account';
+    var table = isAccount ? util.prop('account_table', 'customer_account') : util.customerTable();
+    var id = '';
+    try {
+        id = util.findCustomer(String(RP.getParameterValue('name') || ''), String(RP.getParameterValue('email') || ''), String(RP.getParameterValue('phone') || ''), table, isAccount, true);
+    } catch (e) { gs.error('[D365CC] screen pop lookup failed: ' + e); }
+    id ? table + '|' + id : '';
+]]></g:evaluate>
+<div id="d365cc_found">\${jvar_found}</div>
+</j:jelly>`;
 export const EDGE_PROPERTIES = [
     { name: 'd365cc.edge_url', value: 'https://portal.us.contactcenterai.powerplatform.com/experience/agent', type: 'string',
       description: 'Dynamics 365 Contact Center Edge portal (Pulse) URL for your region. The softphone page /d365cc_edge.do frames it.' },
@@ -199,6 +220,10 @@ export default async function edge() {
     await upsert('sys_ui_page', 'name=d365cc_edge', {
         name: 'd365cc_edge', html: PAGE.replace(/^<\?xml[^>]*\?>\s*/, ''), direct: 'true', category: 'general',
         description: 'Dynamics 365 Contact Center Edge softphone host for OpenFrame.'
+    });
+    await upsert('sys_ui_page', 'name=d365cc_find', {
+        name: 'd365cc_find', html: FIND_PAGE.replace(/^<\?xml[^>]*\?>\s*/, ''), direct: 'false', category: 'general',
+        description: 'Screen pop lookup used by the Edge host page.'
     });
     log('  edge host page ready: /d365cc_edge.do');
 }
