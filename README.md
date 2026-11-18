@@ -52,6 +52,7 @@ Both editions show the same softphone (the Dynamics 365 Contact Center Edge desk
    * [Step 5 – Dynamics 365: connect and turn the flows on](#step-5--dynamics-365-connect-and-turn-the-flows-on)
    * [Step 6 – Softphone in the ServiceNow Workspace](#step-6--softphone-in-the-servicenow-workspace)
    * [Step 7 – Copilot Studio (optional)](#step-7--copilot-studio-optional)
+   * [Optional: open the Incident when the call is accepted](#optional-open-the-incident-when-the-call-is-accepted)
 6. [Test it](#test-it)
 7. [Troubleshooting](#troubleshooting)
 8. [Alternative: scripted install](#alternative-scripted-install)
@@ -60,6 +61,7 @@ Both editions show the same softphone (the Dynamics 365 Contact Center Edge desk
 11. [Settings](#settings)
 12. [Uninstall](#uninstall) and [ITSM edition: what is different](#itsm-edition-what-is-different)
 13. [Notes and limits](#notes-and-limits)
+14. [Field notes from a real install](docs/field-notes.md): problems seen on 2026-11-18 and their fixes
 
 ---
 
@@ -86,6 +88,8 @@ Calls reach ServiceNow by themselves: when an agent accepts a voice call in Dyna
 | [`servicenow/package/post-install-fix-script.js`](servicenow/package/post-install-fix-script.js) | Optional repair script (also inside the update set): re-creates the form layout, related lists and softphone, and gives you the softphone role. You do not need it after a normal install. |
 | [`dynamics365/D365ContactCenter_ServiceNow_CallJourney_1_0_1_0.zip`](dynamics365) | **Dynamics 365 solution** (unmanaged): the two Power Automate flows, a connection reference and three environment variables for the ServiceNow address and login. No credentials inside. |
 | `servicenow/src/`, `deploy/` | Source of everything above and a scripted installer (see [Alternative: scripted install](#alternative-scripted-install)). |
+| [`servicenow/addons/incident-pop/`](servicenow/addons/incident-pop) | **Optional, experimental add-on:** opens the new Incident (or Case) in ServiceNow after the agent accepts a call. Not part of the update set; see [Optional: open the Incident when the call is accepted](#optional-open-the-incident-when-the-call-is-accepted). |
+| [`docs/field-notes.md`](docs/field-notes.md) | Problems seen in a real install and how they were fixed. |
 | `docs/images/` | Screenshots used in this README. |
 
 ## Before you start
@@ -166,7 +170,7 @@ HOW TO WORK
 - Use the tools you have (browser, shell). If you cannot operate a browser, switch to GUIDE MODE: give me ONE step at a time with exact click paths, wait for me to say "done", and verify what I report before moving on.
 - Never guess. If a screen or value differs from this prompt, STOP and tell me exactly what you see.
 - Retry a failed action at most twice, then stop and show me the exact error.
-- I sign in myself, including MFA. Never ask me to paste passwords or tokens in this chat and never store any. Do your ServiceNow checks inside my signed-in browser session (for example open /api/now/table/... URLs as GET requests, or use the list views).
+- I sign in myself, including MFA. Never ask me to paste passwords or tokens in this chat and never store any. Do your ServiceNow checks inside my signed-in browser session (for example open /api/now/table/... URLs as GET requests, or use the list views). Some instances answer /api/now/table/... in the browser with "User is not authenticated" even when I am signed in: then use the list views (<table>_list.do) or <table>.do?XML&sys_id=<id> instead.
 - Do not delete or change anything that is not listed here. Never touch a different ServiceNow instance or Dynamics 365 environment.
 - After each step give a one-line status: OK / WARNING / FAILED.
 
@@ -220,6 +224,8 @@ STEP 7 - FIRST LOAD AND CHECK
 6. Pop-up blocked or sign-in loops: allow pop-ups and third-party cookies as in STEP 6.4, and retry in a normal (not private) window. HTTP 400 "Request Too Long": clear the cookies for dynamics.com and microsoftonline.com and retry.
 7. Tell me: Edge keeps loading for about 30 seconds after the panel first opens (even when it already shows "No active conversations"). Until then the "Open Copilot" button and the header Copilot icon do nothing. After that both open the Copilot pane ("What can I help with?"), also without a conversation.
 8. The browser console shows "Creating a worker from 'blob:...' violates the following Content Security Policy directive". That message comes from Microsoft's portal itself and also appears outside ServiceNow; ignore it unless voice calls fail.
+9. The panel shows another Dynamics 365 org, or the old widget: another OpenFrame configuration for Dynamics 365 is still active (for example an older "Dynamics 365 Contact Center Embed" with a different dynamicsUrl). Show it to me and, after my "yes", deactivate it (never delete it), open /cache.do and hard-refresh.
+10. Sign-in fails with "AADSTS700003 Your organization has deleted this device": that comes from Windows single sign-on on the agent's PC, not from this setup. Tell me to turn off "Allow single sign-on for work or school sites using this profile" in the Edge profile settings (or remove the stale account under Windows Settings > Accounts > Access work or school, or use another browser profile), then sign in again. Console messages "[Violation] Permissions policy violation: unload" and a 404 on .../cceweb/config/<org>/settings.json do not stop the panel on their own.
 
 STEP 8 - FINAL REPORT
 Give me a table: item (OpenFrame plugin, host page, configuration, roles, Dynamics 365 side, first load) / status (OK, WARNING, FAILED) / what you saw. List exactly what you changed and how to undo it (deactivate the configuration, delete the UI Page d365cc_edge and UI Script d365cc_edge_host if you created them, remove the role from the users, remove any frame-ancestors entries you added). Then tell me the next step: install the call journey package from this README ("Let an AI assistant install it for you").
@@ -268,17 +274,23 @@ HOW TO WORK
 - The only secret you create is the password of the ServiceNow integration user. Generate it (24+ characters, letters, digits and symbols, no quotes or backslashes), use it only in the two places named below, and never write it to a file, log, screenshot, commit or message. At the end tell me where it lives.
 - After each phase give me one or two lines of status (OK / WARNING / FAILED) before you continue.
 - Lab instances (ServiceNow University) and personal developer instances pause when idle. If a ServiceNow address answers "Your instance is hibernating", HTTP 502 or 503, wake it (the course page, button "Wake Up Instance") and retry after a few minutes. That is not an error in this package.
+- File uploads: many browser agents cannot choose a file on my computer. If you cannot, ask me to do only that click (choose the file and Upload), wait for "done", then continue yourself.
+- ServiceNow signs the session out after a while. If a page shows the sign-in screen, ask me to sign in again and continue where you stopped; do not start over.
+- Read-only checks: if https://<instance>/api/now/table/... answers "User is not authenticated" in my signed-in browser (seen on some instances), use the list views (<table>_list.do) or <table>.do?XML&sys_id=<id> instead.
+- Some instances block Scripts - Background ("not authorized", no security_admin elevation). Do not work around it: everything here can be done with forms and list views.
+- The HTML and Script fields on ServiceNow forms use a code editor that can add characters while you type. Click "Click to disable syntax highlighting" above the field before you replace its content, and check the saved record afterwards (for example https://<instance>/sys_ui_page.do?XML&sys_id=<sys_id>).
 
 PHASE 0 - QUESTIONS (ask all in one message, then wait)
 1. ServiceNow instance host name, for example dev12345.service-now.com, or "I don't have one yet" (then you get one for me in PHASE 0B).
 2. Is this a non-production instance? If it is production, warn me and continue only after I answer an explicit "yes, production".
 3. Dynamics 365 Contact Center environment URL (for example https://contoso.crm.dynamics.com) and the environment's name as shown in Power Apps.
-4. Optional: the Dynamics 365 Contact Center app id (leave blank if I do not know it).
+4. Optional: the id of the Dynamics 365 app that should open recordings. If I leave it blank, you look it up in PHASE 3 (never leave the placeholder).
 5. Time zone (IANA name, for example America/New_York) and a short label (for example ET) for call titles.
 6. Besides me, which ServiceNow users should see the softphone (user names or e-mails)? "None" is fine.
 7. Confirm I can sign in to: (a) ServiceNow as an admin, (b) Power Apps with an account that can import solutions and create connections in that environment.
 8. Edition: do my agents work with Cases (Customer Service Management, CSM) or with Incidents (ITSM)? If I do not know, check it yourself in PHASE 1 and tell me. CSM = the table sn_customerservice_case exists. ITSM only = the table incident exists and sn_customerservice_case does not. If both exist (a lab instance has both), ask me which one my agents work in. From here on EDITION is CSM or ITSM and file A is A-CSM or A-ITSM. Never import both editions on one instance.
 9. ITSM edition only: which agent interface do my agents use, the classic UI / Next Experience, or the Service Operations Workspace? (It sets the link style in PHASE 3.)
+10. Do I want the new Incident (or Case) to open by itself in ServiceNow after an agent accepts a call? That is the optional, experimental add-on of PHASE 6B. Default: no.
 
 PHASE 0B - GET A FREE SERVICENOW INSTANCE (only if I said I have none; otherwise skip)
 ServiceNow has no public trial. There are two free routes. Try ROUTE B first (it includes Customer Service Management and is usually instant). If ROUTE B fails or is unavailable (course not found, lab will not start, no instance address shown, or I am not eligible), tell me in one line and switch to ROUTE A without being asked. If ROUTE A is on a waitlist, tell me to come back when ServiceNow e-mails me, and you can still prepare everything else meanwhile (download files, read the README).
@@ -299,6 +311,7 @@ PHASE 1 - PREFLIGHT
    - CSM: the table sn_customerservice_case exists and the "CSM/FSM Configurable Workspace" is available (https://<host>/now/cwf/agent/home opens). If the Workspace is missing, STOP.
    - ITSM: the tables incident and sys_user exist (they always do) and I confirmed I have no CSM or my agents work in Incidents. Tell me this edition creates Incidents, not Cases.
    If the table u_cc_call already exists, an earlier version is installed. Read its system property d365cc.mode (absent = version 1.0.x, which is CSM). Same edition: tell me it is an upgrade (it updates in place, the settings d365cc.org_url and d365cc.app_id are reset and must be set again in PHASE 3), and continue only after my "yes". A different edition than the one installed: STOP, never mix them.
+3. Existing softphone configurations: list sn_openframe_configuration (name, url, active, order). If another ACTIVE configuration for Dynamics 365 exists (for example an older "Dynamics 365 Contact Center Embed", or a widget URL whose dynamicsUrl is a different org), tell me now: it makes the panel open the wrong org. You deactivate it in PHASE 6 after my "yes"; never delete it. Configurations of other vendors stay as they are unless I say otherwise.
 
 PHASE 2 - SERVICENOW PACKAGE
 1. System Update Sets > Retrieved Update Sets > "Import Update Set from XML" > upload file A-CSM or A-ITSM according to EDITION.
@@ -309,8 +322,10 @@ PHASE 2 - SERVICENOW PACKAGE
 6. Open https://<instance>/cache.do once. UI pages and scripts are cached, and an old version can keep running without this.
 
 PHASE 3 - SETTINGS
-Set these System Properties (sys_properties.list): d365cc.mode must already be csm or itsm to match EDITION and d365cc.record_table must be sn_customerservice_case (CSM) or incident (ITSM) (the update set sets them; never change them by hand); d365cc.org_url = my Dynamics 365 URL with no trailing slash; d365cc.app_id = the app id if I gave one; d365cc.time_zone; d365cc.time_zone_label. Leave d365cc.edge_url (Edge portal, default US) and d365cc.edge_layout (compact) as they are unless I gave you a regional portal URL. Then open https://<instance>/d365cc_edge.do in a new tab: it must show a Microsoft sign-in or the Contact Center workspace, not "Set the system property d365cc.org_url". If I am upgrading from an earlier version, committing the update set put d365cc.org_url and d365cc.app_id back to their placeholders: set them again.
+Set these System Properties (sys_properties.list): d365cc.mode must already be csm or itsm to match EDITION and d365cc.record_table must be sn_customerservice_case (CSM) or incident (ITSM) (the update set sets them; never change them by hand); d365cc.org_url = my Dynamics 365 URL with no trailing slash; d365cc.app_id = the app id I gave, otherwise the one you look up (below); d365cc.time_zone; d365cc.time_zone_label. Leave d365cc.edge_url (Edge portal, default US) and d365cc.edge_layout (compact) as they are unless I gave you a regional portal URL. Then open https://<instance>/d365cc_edge.do in a new tab: it must show a Microsoft sign-in or the Contact Center workspace, not "Set the system property d365cc.org_url". If I am upgrading from an earlier version, committing the update set put d365cc.org_url and d365cc.app_id back to their placeholders: set them again.
 ITSM edition only: d365cc.record_url controls how links open records. The default opens them in the classic form inside Next Experience (/now/nav/ui/classic/params/target/{table}.do%3Fsys_id%3D{id}). If I said my agents use the Service Operations Workspace, set it to /now/sow/record/{table}/{id}. Keep {table} and {id} exactly.
+App id (needed by the Recording & transcript button; the update set ships the placeholder REPLACE-WITH-YOUR-D365-APP-ID and the link then fails): if I gave none, open https://<my Dynamics 365 URL>/api/data/v9.2/appmodules?$select=name,uniquename,appmoduleid in the browser while signed in to Dynamics 365 and use the appmoduleid of uniquename msdyn_CustomerServiceWorkspace (Copilot Service workspace), which shows the recording, transcript and evaluation. If it is not there, show me the list and ask which app my agents use. The link is built when a call is displayed, so it also fixes past calls.
+Agent time zone: the times inside the Call Journey card use each agent's ServiceNow user time zone, not d365cc.time_zone. Check the Time zone on my user and on the users of PHASE 0 question 6; if one differs from d365cc.time_zone, tell me and change it only after my "yes".
 
 PHASE 4 - INTEGRATION USER
 1. Create a ServiceNow user: User ID d365cc.integration, Active, "Web service access only" ticked.
@@ -328,17 +343,27 @@ PHASE 5 - DYNAMICS 365
 5. Import and wait for the success message.
 6. Open the solution "D365 Contact Center - ServiceNow Call Journey". Check that the connection reference "D365 Contact Center - Dataverse" is connected. Turn ON both flows: "D365 Contact Center - Create ServiceNow case when an agent accepts a call" (it creates the Case in the CSM edition and the Incident in the ITSM edition; the flow is the same) and "D365 Contact Center - Sync ended calls to ServiceNow". Reload the page and confirm both show On. If a flow asks to fix its connection, fix it and turn it on again.
 7. Confirm all three environment variables have a current value. For the password only confirm it is not empty; never display it.
+8. The accept flow runs every minute. After two minutes open its run history: runs must succeed. A run that fails with 401 means the password differs between the ServiceNow user and the environment variable: set both again.
 
 PHASE 6 - SOFTPHONE ACCESS
 Give the role sn_openframe_user to me and to the users I listed. Verify each assignment. Open https://<instance>/cache.do once (OpenFrame configurations are cached). Tell them to hard-refresh (Ctrl+Shift+R) the agent interface: the CSM/FSM Configurable Workspace (CSM edition) or the ServiceNow header of their interface (ITSM edition). A phone icon then appears in the header and opens the Dynamics 365 Contact Center Edge desktop in a 480 x 700 side panel. If an ITSM user does not see the icon, check the role sn_openframe_user, that the OpenFrame configuration is active, and that /cache.do was opened; tell me if the interface in use does not show OpenFrame at all. The first time, each agent signs in to Microsoft in a pop-up (allow pop-ups for the ServiceNow host). Tell me that Copilot ("Open Copilot" or the header Copilot icon) responds only once Edge has finished loading, about 30 seconds after the panel first opens.
+If PHASE 1 found an older active Dynamics 365 configuration, deactivate it now (after my "yes"), open /cache.do again and confirm the panel opens my org (the panel frames the portal with orgUrl = d365cc.org_url). Sign-in problems on an agent's PC: "AADSTS700003 Your organization has deleted this device" comes from Windows single sign-on, not from this package: tell the agent to turn off "Allow single sign-on for work or school sites using this profile" in the Edge profile settings (or remove the stale account under Windows Settings > Accounts > Access work or school, or use another browser profile) and sign in again. "HTTP 400 Request Too Long": clear the cookies for microsoftonline.com, dynamics.com and powerplatform.com. Console lines "[Violation] Permissions policy violation: unload" and a 404 on .../cceweb/config/<org>/settings.json do not stop the panel on their own.
+
+PHASE 6B - OPTIONAL: OPEN THE RECORD WHEN THE CALL IS ACCEPTED (only if I said yes in PHASE 0 question 10)
+The update set opens the matching customer only when the Edge portal sends a screen-pop event; in a real ITSM install no such event reached ServiceNow, so nothing opened on accept. The add-on in servicenow/addons/incident-pop (read its README first) opens the new Incident or Case instead. It is experimental and opens the newest call on the whole instance, so tell me it suits one agent per instance.
+1. UI Page d365cc_mycall: Category general, Direct false, HTML = servicenow/addons/incident-pop/d365cc_mycall.xml exactly. If saving asks for a role for the page's access control, choose sn_openframe_user.
+2. UI Script d365cc_incident_pop: Active true, Global false, UI type All, Script = servicenow/addons/incident-pop/d365cc_incident_pop.js exactly.
+3. UI Page d365cc_edge: add the single line <g:requires name="d365cc_incident_pop.jsdbx"/> right after <g:requires name="d365cc_edge_host.jsdbx"/>. Change nothing else. Verify with https://<instance>/sys_ui_page.do?XML&sys_id=<its sys_id>.
+4. Open /cache.do. Check that https://<instance>/d365cc_incident_pop.jsdbx shows the script and https://<instance>/d365cc_mycall.do?secs=60 loads (empty when no call arrived in the last minute).
+5. Tell me: the record opens up to about a minute after the accept (the accept flow runs every minute), and the panel shows a banner "<number> created for this call - Open". Undo: remove the line of step 3 and open /cache.do.
 
 PHASE 7 - END-TO-END CHECK
 Ask me to place a real call to my Dynamics 365 voice number, accept it as an agent, then end it. Do not create fake data. Then check, read-only:
 - Within about two minutes of the agent accepting: a new Case exists in sn_customerservice_case (CSM) or a new Incident exists in incident (ITSM) and a row exists in u_cc_call related to it. In the ITSM edition the Incident caller is the ServiceNow user whose phone, e-mail or name matches the Dynamics 365 contact; if nobody matches, the caller is empty and the description names the caller.
 - After the call ends: the u_cc_call status is Completed and the Case or Incident Activity stream shows one entry "Contact Center call completed".
-- In the Workspace (CSM) or the form (ITSM): the button "Open call journey" opens the call (as a sub tab in the Workspace, as the call list in the classic UI) and "Recording & transcript" on the call opens the recording and transcript pop-up.
+- In the Workspace (CSM) or the form (ITSM): the button "Open call journey" opens the call (as a sub tab in the Workspace, as the call list in the classic UI) and "Recording & transcript" on the call opens the recording and transcript pop-up. In the Service Operations Workspace "Open call journey" is in the record's ⋯ (More actions) menu, not a header button, and the Call Journey card is at the bottom of the call form. The pop-up must show the conversation with the recording player; if the call's Recording URL contains REPLACE-WITH-YOUR-D365-APP-ID, d365cc.app_id is not set (PHASE 3).
 - Incoming call (both editions): with the ServiceNow tab minimized or in the background, an incoming Dynamics 365 conversation must open the softphone panel by itself. Tell me to allow notifications for the ServiceNow site once (browser site settings) so a system notification also appears; then ask me to test with the tab minimized.
-- Screen pop: accepting the call must open the matching customer (CSM contact or ITSM user) in ServiceNow. If it does not, check the phone number on the ServiceNow customer (the last 10 digits are compared, spaces and dashes do not matter) and on the Dynamics 365 contact, and that /cache.do was opened after the import. In a test you can open https://<instance>/d365cc_find.do?type=contact&phone=<number> while signed in: the page shows <table>|<sys_id> when a customer matches and nothing when none does.
+- Screen pop: accepting the call must open the matching customer (CSM contact or ITSM user) in ServiceNow. If it does not, check the phone number on the ServiceNow customer (the last 10 digits are compared, spaces and dashes do not matter) and on the Dynamics 365 contact, and that /cache.do was opened after the import. In a test you can open https://<instance>/d365cc_find.do?type=contact&phone=<number> while signed in: the page shows <table>|<sys_id> when a customer matches and nothing when none does. If it matches and still nothing opens on accept, the portal sent no screen-pop event (seen with real calls on an ITSM install): tell me, and offer PHASE 6B if I want the new record to open instead.
 If something is missing, use the Troubleshooting table in the README. Look first at the flow run history in Power Automate, then at the ServiceNow System Log (messages starting with "[D365CC]"). Report what you find; do not change anything else without asking me.
 
 STOP AND ASK ME WHENEVER
@@ -371,9 +396,11 @@ In **System Properties** (type `sys_properties.list` in the navigator) set:
 | Property | Value |
 |---|---|
 | `d365cc.org_url` | Your Dynamics 365 URL, for example `https://contoso.crm.dynamics.com` |
-| `d365cc.app_id` | *(optional)* The id of the Contact Center app in your environment |
+| `d365cc.app_id` | **Needed by Recording & transcript.** The id of the Dynamics 365 app that opens the conversation, normally **Copilot Service workspace**. Signed in to Dynamics 365, open `https://<your org>/api/data/v9.2/appmodules?$select=name,uniquename,appmoduleid` and copy the `appmoduleid` of `msdyn_CustomerServiceWorkspace`. Left at `REPLACE-WITH-YOUR-D365-APP-ID`, the button opens a broken link. |
 | `d365cc.time_zone` | IANA time zone used in call titles, for example `America/New_York` |
 | `d365cc.time_zone_label` | Short label shown in call titles, for example `ET` |
+
+The times inside the Call Journey card use each agent's own **ServiceNow user time zone**, not `d365cc.time_zone`. Check the time zone in each agent's user profile.
 
 The **softphone** (the Edge desktop in the OpenFrame panel) reads `d365cc.org_url` by itself. Two more properties came with the update set and usually stay as they are:
 
@@ -432,6 +459,7 @@ The update set created everything the panel needs: the OpenFrame configuration *
 2. Open `https://<your instance>/cache.do` once. OpenFrame configurations are cached, and without this the old panel (or no icon) can stay for a while.
 3. Hard-refresh the Workspace (Ctrl+Shift+R). A **phone icon** appears in the top bar. Click it: the Edge desktop opens on the right as a side panel, and the ServiceNow record stays visible.
 4. The first time, each agent signs in to Microsoft in a pop-up. Allow pop-ups for your ServiceNow host. On the first voice call the browser asks for the microphone: **Allow**.
+5. In **OpenFrame → Configurations**, make sure no other Dynamics 365 configuration is active, for example an older *Dynamics 365 Contact Center Embed* that points at another org. Deactivate it (do not delete it), then repeat 2 and 3. Otherwise the panel can show the wrong org.
 
 At 480 px Edge shows one pane at a time. The toggle on the left of the panel switches to the conversation list, and the panel's **⋮** menu → *Panel Placement* docks it beside the page instead. To make it bigger, change **Width** and **Height** in **OpenFrame → Configurations → Dynamics 365 Contact Center**.
 
@@ -446,6 +474,10 @@ If your IVR runs in Copilot Studio and creates the Case itself, write the conver
 
 If you skip this, the accept flow creates the Case for you.
 
+### Optional: open the Incident when the call is accepted
+
+The update set opens the matching **customer** only when the Edge portal sends a screen-pop event. In a real ITSM install no such event reached ServiceNow, so nothing opened when the agent accepted the call. The **experimental** add-on in [`servicenow/addons/incident-pop`](servicenow/addons/incident-pop) opens the new **Incident** (or Case) instead, up to about a minute after the accept, and shows an **Open** banner in the panel. It opens the newest call on the whole instance, so it suits one agent per instance (demos, pilots). Install and limits are in its [README](servicenow/addons/incident-pop/README.md).
+
 ---
 
 ## Test it
@@ -453,9 +485,9 @@ If you skip this, the accept flow creates the Case for you.
 1. Place a call to your Dynamics 365 voice number and let an agent accept it, then end the call.
 2. Within about a minute of the agent accepting, a **Case** (CSM edition) or an **Incident** (ITSM edition) appears in ServiceNow with a **Contact Center Call** related to it. In the ITSM edition the Incident **caller** is the user whose phone, e-mail or name matches.
 3. When the call ends, the Case or Incident **Activity** shows **Contact Center call completed**.
-4. Click **Open call journey**: in the Workspace the call opens as a sub tab with the Call Journey card on top; on the classic Incident form it opens the list of the call(s) of that Incident.
+4. Click **Open call journey**: in the Workspace the call opens as a sub tab with the Call Journey card on top; on the classic Incident form it opens the list of the call(s) of that Incident. In the **Service Operations Workspace** it is in the record's **⋯** (More actions) menu, and the Call Journey card is at the bottom of the call form.
 5. On the call click **Recording & transcript**: the Dynamics 365 recording, transcript and evaluation open in a full-size pop-up.
-6. **Screen pop:** with the softphone open, accept a call from a number that belongs to a ServiceNow contact (CSM) or user (ITSM): that customer opens in ServiceNow. With the ServiceNow tab minimized, an incoming conversation opens the panel by itself (allow notifications for your ServiceNow site once for a system notification too).
+6. **Screen pop:** with the softphone open, accept a call from a number that belongs to a ServiceNow contact (CSM) or user (ITSM): that customer opens in ServiceNow. With the ServiceNow tab minimized, an incoming conversation opens the panel by itself (allow notifications for your ServiceNow site once for a system notification too). If the customer does not open on accept, see the Troubleshooting row about the Incident being created with nothing opening.
 
 To send a past call again without placing a new one, use the [replay script](#alternative-scripted-install) (`deploy/d365/replay-sync.mjs`).
 
@@ -484,6 +516,14 @@ To send a past call again without placing a new one, use the [replay script](#al
 | Browser console: *Creating a worker from 'blob:...' violates the following Content Security Policy* | Comes from Microsoft's Edge portal itself, also outside ServiceNow. Ignore it unless voice calls fail. |
 | Call record form is missing the journey card or the related lists | Run the optional repair script (see step 2). |
 | Dynamics 365 widget keeps crashing in the browser | Very large numbers of unread notifications in Dynamics 365 can exhaust the browser: delete old `appnotification` records. |
+| **Recording & transcript** opens an error page; the call's Recording URL contains `REPLACE-WITH-YOUR-D365-APP-ID` | `d365cc.app_id` is still the placeholder. Set it to the `appmoduleid` of Copilot Service workspace (see Step 2). The link is built when the call is displayed, so past calls are fixed too. |
+| Panel shows another Dynamics 365 org, or the old widget | Another OpenFrame configuration for Dynamics 365 is still active (for example *Dynamics 365 Contact Center Embed*). Deactivate it, check `d365cc.org_url`, open `/cache.do` and hard-refresh. |
+| Sign-in fails with **AADSTS700003** *Your organization has deleted this device* | Windows single sign-on on the agent's PC offers an account whose device was removed from the tenant; not caused by this package. In Edge turn off *Settings → Profiles → Profile preferences → Allow single sign-on for work or school sites using this profile*, or remove the stale account under *Windows Settings → Accounts → Access work or school*, or use another browser profile. |
+| Console shows `[Violation] Permissions policy violation: unload` or a 404 on `.../cceweb/config/<org>/settings.json` | These do not stop the panel on their own. Look for the actual sign-in error (rows above). |
+| The Incident (or Case) is created but nothing opens in ServiceNow when the call is accepted | The update set opens the **customer**, and only when the Edge portal sends a screen-pop event; with real calls on an ITSM install none arrived. The Incident itself appears up to a minute after the accept (the accept flow runs every minute). To open the new record, use the [optional add-on](#optional-open-the-incident-when-the-call-is-accepted). |
+| Cannot find **Open call journey** in the Service Operations Workspace | It is in the record's **⋯** (More actions) menu. The Call Journey card is at the bottom of the call form that opens as a sub tab. |
+| Times in the Call Journey card are hours off | The card uses the agent's ServiceNow user time zone. Set it in the user profile. `d365cc.time_zone` only affects call titles. |
+| **Scripts - Background** says *not authorized* | Instance security policy. Nothing in this install needs a background script: use the forms and list views. |
 
 ## Alternative: scripted install
 
@@ -579,13 +619,13 @@ erDiagram
 | Property | Meaning |
 |---|---|
 | `d365cc.org_url` | Dynamics 365 environment URL |
-| `d365cc.app_id` | Contact Center app id (optional) |
+| `d365cc.app_id` | Dynamics 365 app id used by **Recording & transcript** (set it; see Step 2) |
 | `d365cc.time_zone` | IANA time zone used in call titles |
 | `d365cc.time_zone_label` | Short label in call titles (for example `ET`) |
 | `d365cc.edge_url` | Edge portal URL for your region (default `https://portal.us.contactcenterai.powerplatform.com/experience/agent`) |
 | `d365cc.edge_layout` | Edge layout preset: `compact` (default; header with outbound call, presence and Copilot), `embedded`, `full` or `minimal` |
 
-Times inside the Call Journey card and the call picker are shown in each agent's own ServiceNow time zone.
+Times inside the Call Journey card and the call picker are shown in each agent's own ServiceNow time zone (the user profile), not in `d365cc.time_zone`.
 
 ## Uninstall
 
@@ -614,7 +654,9 @@ For instances that use ITSM only (Incidents, no Customer Service Management), fo
 * Screen pop: the host page asked the server which user matches and opened the user's form (portal events were simulated; the portal itself was not given a real call).
 * CSM edition: new install, and upgrade over 1.0.3 (preview 0 problems, no duplicates), accepted call with contact match, contact creation when nobody matches, completion and activity entry.
 
-**Not yet proven with a real call:** the Edge portal's own `conversation.invited` and `screenPop.requested` events (they were simulated), and the system notification with a really minimized browser. Run the end-to-end check in the install prompt once with a real call. The Service Operations Workspace was not tested; set `d365cc.record_url` as described above if your agents use it. Brazil was not tested.
+**Not yet proven with a real call:** the Edge portal's own `conversation.invited` and `screenPop.requested` events (they were simulated), and the system notification with a really minimized browser. Run the end-to-end check in the install prompt once with a real call. Brazil was not tested.
+
+**Real-call test (2026-11-18, ITSM, Service Operations Workspace, Edge panel).** Accepted calls created the Incident and the call record within about a minute. At call end the call was completed with its timings and one Activity entry. **⋯ → Open call journey** opened the call as a sub tab with the journey card. After `d365cc.app_id` was set, **Recording & transcript** played the recording. No screen-pop event reached ServiceNow on accept, so nothing opened (see the [optional add-on](#optional-open-the-incident-when-the-call-is-accepted)). Details are in [docs/field-notes.md](docs/field-notes.md).
 
 ## Notes and limits
 
@@ -634,5 +676,6 @@ For instances that use ITSM only (Incidents, no Customer Service Management), fo
 * **Case tab strip.** The Workspace tab strip (SLAs, Tasks, Emails…) is configured in UI Builder, not by related-list records, so a *Contact Center Calls* tab has to be added there by hand if you want one. The Case **Open call journey** button already reaches every call.
 * **Activity entry icon.** ServiceNow picks the yellow lock icon for work notes; it cannot be changed from here.
 * **Secrets.** The flows read the ServiceNow login from environment variables. Use Key Vault for production.
+* **Field notes (2026-11-18).** Problems seen in a real ITSM install (wrong org in the panel, sign-in errors, the missing app id, where the journey is in the Service Operations Workspace, journey times, nothing opening on accept) and their fixes are in [docs/field-notes.md](docs/field-notes.md).
 * **Lab instances** from ServiceNow University expire and cannot be shared; a Personal Developer Instance lasts longer. Import the update set again on the new instance.
 * This is a community sample, not an official Microsoft or ServiceNow product, and is not supported by either company.
