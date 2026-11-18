@@ -1,0 +1,22 @@
+<j:jelly trim="false" xmlns:j="jelly:core" xmlns:g="glide" xmlns:j2="null" xmlns:g2="null">
+<g:evaluate var="jvar_inc" jelly="true"><![CDATA[
+    var out = '';
+    try {
+        var table = String(gs.getProperty('d365cc.record_table', 'incident') || 'incident');
+        var secs = parseInt(String(RP.getParameterValue('secs') || '0'), 10);
+        if (isNaN(secs) || secs < 0) secs = 0;
+        if (secs > 600) secs = 600;
+        if (secs > 0) {
+            var g = new GlideRecord('u_cc_call');
+            g.addQuery('sys_created_on', '>=', gs.secondsAgo(secs));
+            g.addNotNullQuery('u_case');
+            g.orderByDesc('sys_created_on');
+            g.setLimit(1);
+            g.query();
+            if (g.next()) out = table + '|' + g.getValue('u_case') + '|' + g.getDisplayValue('u_case') + '|' + g.getUniqueValue();
+        }
+    } catch (e) { gs.error('[D365CC] incident pop lookup failed: ' + e); }
+    out;
+]]></g:evaluate>
+<div id="d365cc_inc">${jvar_inc}</div>
+</j:jelly>
