@@ -143,10 +143,20 @@ export default async function ui() {
         '.begin_split', 'u_total_duration_seconds', 'u_virtual_agent_seconds', 'u_wait_time_seconds',
         '.split', 'u_talk_time_seconds', 'u_handle_time_seconds', 'u_conversation_id', 'u_recording_url', '.end_split'
     ];
-    // The Service Operations Workspace uses the Default view, which ServiceNow fills with every field of the table.
-    for (const view of [null, 'workspace', 'default']) {
+    for (const view of [null, 'workspace']) {
         await section(CALL, '', view, callLayout, 0);
         await section(CALL, 'Call details', view, callDetails, 1);
+    }
+    // The Service Operations Workspace renders a section named "Default view" that ServiceNow generates with every field of the
+    // table (raw evaluation JSON included). Keep only the fields of the call layout there.
+    for (const sec of await api('GET', `/api/now/table/sys_ui_section?sysparm_query=${encodeURIComponent('name=' + CALL + '^view=Default view')}&sysparm_fields=sys_id`)) {
+        for (const el of await api('GET', `/api/now/table/sys_ui_element?sysparm_query=${encodeURIComponent('sys_ui_section=' + sec.sys_id)}&sysparm_fields=sys_id&sysparm_limit=200`)) {
+            await api('DELETE', `/api/now/table/sys_ui_element/${el.sys_id}`);
+        }
+        let pos = 0;
+        for (const el of [...callLayout, ...callDetails]) {
+            await api('POST', '/api/now/table/sys_ui_element', { sys_ui_section: sec.sys_id, element: el, position: String(pos++), ...(el.startsWith('.') ? { type: el } : {}) });
+        }
     }
     // Calls appear in the Case Activity stream (see 02-logic), not on the Case form: remove the old section.
     await removeSection(CASE, 'Call Journey');
