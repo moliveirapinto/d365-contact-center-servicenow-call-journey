@@ -67,11 +67,13 @@ const LISTENER = `function onLoad() {
 }`;
 export default async function open() {
     await upsert('sys_ui_page', 'name=d365cc_open', { name: 'd365cc_open', html: PAGE.replace(/^<\?xml[^>]*\?>\s*/, ''), direct: 'false', category: 'general' });
-    for (const table of ['u_cc_call', MODE.record]) {
-        await upsert('sys_script_client', `name=D365CC open call sub tab^table=${table}`, {
-            name: 'D365CC open call sub tab', table, type: 'onLoad', active: 'true', global: 'true', ui_type: '10', script: LISTENER
-        });
-    }
+    // Only the record form (Case / Incident) answers the hand-off. If the call form answered too, it would open the call inside
+    // the call's own tab whenever that tab is already open, and the click would seem to do nothing.
+    await upsert('sys_script_client', `name=D365CC open call sub tab^table=${MODE.record}`, {
+        name: 'D365CC open call sub tab', table: MODE.record, type: 'onLoad', active: 'true', global: 'true', ui_type: '10', script: LISTENER
+    });
+    const stale = await find('sys_script_client', 'name=D365CC open call sub tab^table=u_cc_call');
+    if (stale) await api('PATCH', `/api/now/table/sys_script_client/${stale.sys_id}`, { active: 'false' });
     const probe = await find('sys_script_client', 'name=D365CC probe2');
     if (probe) await api('DELETE', `/api/now/table/sys_script_client/${probe.sys_id}`);
     log('  open-call hand-off ready');
