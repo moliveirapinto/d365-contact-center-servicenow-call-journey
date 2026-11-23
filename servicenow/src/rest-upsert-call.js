@@ -9,7 +9,7 @@
 
     // Writable columns only; the server computes durations, title and links.
     var FIELDS = [
-        'u_status', 'u_call_received', 'u_agent_connected', 'u_call_ended', 'u_queue', 'u_agent',
+        'u_status', 'u_channel', 'u_call_received', 'u_agent_connected', 'u_call_ended', 'u_queue', 'u_agent',
         'u_customer_sentiment', 'u_handled_by_virtual_agent', 'u_talk_time_seconds', 'u_wait_time_seconds',
         'u_handle_time_seconds', 'u_called_number', 'u_caller_phone', 'u_quality_score', 'u_quality_plan',
         'u_quality_summary', 'u_quality_action_plan', 'u_quality_evaluated_at', 'u_quality_evaluation_json'
@@ -26,7 +26,7 @@
 
     // Agent accepted a call: make sure it has a Case (the IVR normally creates it, but not for direct calls).
     var wantCase = (body.create_case === true || body.create_case === 'true');
-    if (wantCase && !gr.hasNext() && (!body.agent_connected || String(body.d365_channel || '192440000') !== '192440000')) return { skipped: 'not an accepted voice call yet' };
+    if (wantCase && !gr.hasNext() && !body.agent_connected) return { skipped: 'not accepted by an agent yet' };
 
     function ensureCase() {
         var existingCase = new GlideRecord(RECORD);
@@ -37,10 +37,11 @@
         var contactId = util.findOrCreateContact(body.contact_name, body.contact_email, body.caller_phone);
         var nc = new GlideRecord(RECORD);
         nc.initialize();
-        nc.short_description = 'Inbound call' + (body.contact_name ? ' from ' + body.contact_name : '') + (body.subject ? ' - ' + body.subject : '');
-        nc.description = util.prop('record_label', 'Case') + ' created automatically when an agent accepted a Dynamics 365 Contact Center call.' +
+        var voice = util.isVoice(body.channel);
+        nc.short_description = (voice ? 'Inbound call' : util.channelName(body.channel)) + (body.contact_name ? ' from ' + body.contact_name : '') + (body.subject ? ' - ' + body.subject : '');
+        nc.description = util.prop('record_label', 'Case') + ' created automatically when an agent accepted a Dynamics 365 Contact Center ' + util.noun(body.channel) + '.' +
             (contactId ? '' : '\nCaller: ' + (body.contact_name || 'unknown') + (body.caller_phone ? ', ' + body.caller_phone : '') + (body.contact_email ? ', ' + body.contact_email : ''));
-        nc.contact_type = 'phone';
+        nc.contact_type = voice ? 'phone' : 'chat';
         if (contactId) nc.setValue(util.customerField(), contactId);
         nc.u_d365_conversation_id = convId;
         return { id: nc.insert(), created: true };
@@ -91,7 +92,7 @@
     }
 
     // D365 is the source of truth for when the call started, so (re)derive the title from it.
-    if (body.call_received) gr.u_title = util.titleFor(gr.getValue('u_call_received'));
+    if (body.call_received) gr.u_title = util.titleFor(gr.getValue('u_call_received'), gr.getValue('u_channel'));
     var id = created ? gr.insert() : gr.update();
     return { sys_id: String(id || gr.getUniqueValue()), created: created, case_created: String(caseCreated), conversation_id: convId };
 })(request, response);

@@ -78,7 +78,7 @@ Both editions show the same softphone (the Dynamics 365 Contact Center Edge desk
 
 The table above describes the CSM edition. In the [ITSM edition](#itsm-edition-what-is-different) the record is an **Incident** and the buttons are on the classic Incident form.
 
-Calls reach ServiceNow by themselves: when an agent accepts a voice call in Dynamics 365 a **Case and a call record are created**, and when the call ends the **metrics and the AI quality evaluation** are added.
+Calls reach ServiceNow by themselves: when an agent accepts a voice call **or a chat / messaging conversation** (Live chat, WhatsApp, SMS and the other Contact Center channels) in Dynamics 365 a **Case and a call record are created**, and when it ends the **metrics and the AI quality evaluation** are added. Chats get their own title (*Chat started on ...*), icon, timeline (*Conversation started / ended*), handle time and Activity entry (*Contact Center chat completed*).
 
 ## What is in this repository
 

@@ -1,4 +1,4 @@
-// Builds the D365 -> ServiceNow flow that creates the Case (and the call) shortly after an agent accepts a voice call.
+// Builds the D365 -> ServiceNow flow that creates the Case (and the call) shortly after an agent accepts a call or chat.
 // Usage: node deploy/d365/create-flow.mjs   (needs D365_TOKEN, SN_INTEGRATION_PASS and .env.local)
 import fs from 'node:fs';
 import { cfg, log } from '../lib.mjs';
@@ -32,24 +32,24 @@ const definition = {
         }
     },
     actions: {
-        List_accepted_voice_calls: {
+        List_accepted_conversations: {
             runAfter: {},
             type: 'OpenApiConnection',
             inputs: {
                 host: { ...CDS, operationId: 'ListRecords' },
                 parameters: {
                     entityName: 'msdyn_ocliveworkitems',
-                    $select: 'subject,msdyn_createdon,msdyn_activeagentassignedon,msdyn_channelconnectionid,msdyn_copilotengaged,_msdyn_customer_value,_msdyn_cdsqueueid_value,_msdyn_activeagentid_value',
-                    $filter: "msdyn_channel eq '192440000' and msdyn_activeagentassignedon ne null and createdon ge @{addMinutes(utcNow(), -30)}",
+                    $select: 'subject,msdyn_channel,msdyn_createdon,msdyn_activeagentassignedon,msdyn_channelconnectionid,msdyn_copilotengaged,_msdyn_customer_value,_msdyn_cdsqueueid_value,_msdyn_activeagentid_value',
+                    $filter: "msdyn_activeagentassignedon ne null and createdon ge @{addMinutes(utcNow(), -30)}",
                     $top: 20
                 },
                 authentication: "@parameters('$authentication')"
             }
         },
         For_each_call: {
-            runAfter: { List_accepted_voice_calls: ['Succeeded'] },
+            runAfter: { List_accepted_conversations: ['Succeeded'] },
             type: 'Foreach',
-            foreach: "@outputs('List_accepted_voice_calls')?['body/value']",
+            foreach: "@outputs('List_accepted_conversations')?['body/value']",
             actions: {
                 Get_customer: {
                     runAfter: {},
@@ -76,6 +76,7 @@ const definition = {
                             conversation_id: "@items('For_each_call')?['activityid']",
                             create_case: true,
                             status: 'In progress',
+                            channel: "@if(equals(items('For_each_call')?['msdyn_channel'], '192440000'), 'Voice call', items('For_each_call')?['msdyn_channel@OData.Community.Display.V1.FormattedValue'])",
                             subject: "@items('For_each_call')?['subject']",
                             call_received: "@items('For_each_call')?['msdyn_createdon']",
                             agent_connected: "@items('For_each_call')?['msdyn_activeagentassignedon']",
@@ -115,7 +116,7 @@ const base = `${org}/api/data/v9.2`;
 const existing = await (await fetch(`${base}/workflows?$select=workflowid,statecode&$filter=name eq '${FLOW_NAME}'`, { headers: H })).json();
 const body = {
     name: FLOW_NAME, category: 5, type: 1, primaryentity: 'none', clientdata: JSON.stringify(clientdata),
-    description: 'Every minute, creates the ServiceNow Case and Contact Center Call for voice calls an agent has accepted.'
+    description: 'Every minute, creates the ServiceNow Case and Contact Center Call for calls and chats an agent has accepted.'
 };
 let id;
 if (existing.value?.length) {

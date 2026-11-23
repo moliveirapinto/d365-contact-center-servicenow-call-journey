@@ -24,7 +24,7 @@ const definition = {
         $authentication: { defaultValue: {}, type: 'SecureObject' }
     },
     triggers: {
-        When_a_voice_conversation_ends: {
+        When_a_conversation_ends: {
             type: 'OpenApiConnectionWebhook',
             inputs: {
                 host: { ...CDS, operationId: 'SubscribeWebhookTrigger' },
@@ -48,7 +48,7 @@ const definition = {
                 parameters: {
                     entityName: 'msdyn_ocliveworkitems',
                     recordId: "@triggerOutputs()?['body/activityid']",
-                    $select: 'msdyn_createdon,msdyn_activeagentassignedon,msdyn_closedon,msdyn_wrapupinitiatedon,msdyn_conversationtalktimeinseconds,msdyn_conversationfirstwaittimeinseconds,msdyn_conversationhandletimeinseconds,msdyn_customersentimentlabel,msdyn_channelconnectionid,msdyn_copilotengaged,_msdyn_cdsqueueid_value,_msdyn_activeagentid_value'
+                    $select: 'msdyn_channel,msdyn_createdon,msdyn_activeagentassignedon,msdyn_closedon,msdyn_wrapupinitiatedon,msdyn_conversationtalktimeinseconds,msdyn_conversationfirstwaittimeinseconds,msdyn_conversationhandletimeinseconds,msdyn_customersentimentlabel,msdyn_channelconnectionid,msdyn_copilotengaged,_msdyn_cdsqueueid_value,_msdyn_activeagentid_value'
                 },
                 authentication: "@parameters('$authentication')"
             }
@@ -74,6 +74,7 @@ const definition = {
             inputs: {
                 conversation_id: "@triggerOutputs()?['body/activityid']",
                 status: 'Completed',
+                channel: "@if(equals(body('Get_conversation')?['msdyn_channel'], '192440000'), 'Voice call', body('Get_conversation')?['msdyn_channel@OData.Community.Display.V1.FormattedValue'])",
                 call_received: "@body('Get_conversation')?['msdyn_createdon']",
                 agent_connected: "@body('Get_conversation')?['msdyn_activeagentassignedon']",
                 call_ended: "@coalesce(body('Get_conversation')?['msdyn_closedon'], body('Get_conversation')?['msdyn_wrapupinitiatedon'], utcNow())",
@@ -128,7 +129,7 @@ const base = `${org}/api/data/v9.2`;
 const existing = await (await fetch(`${base}/workflows?$select=workflowid,statecode&$filter=name eq '${FLOW_NAME}'`, { headers: H })).json();
 const body = {
     name: FLOW_NAME, category: 5, type: 1, primaryentity: 'none', clientdata: JSON.stringify(clientdata),
-    description: 'Sends call metrics and the AI quality evaluation to ServiceNow when a voice conversation ends.'
+    description: 'Sends call metrics and the AI quality evaluation to ServiceNow when a conversation (call or chat) ends.'
 };
 let id;
 if (existing.value?.length) {

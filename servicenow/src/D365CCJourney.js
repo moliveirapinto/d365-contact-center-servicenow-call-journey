@@ -113,7 +113,10 @@ D365CCJourney.prototype = {
         var end = this.local(gr.getValue('u_call_ended'));
         var vaSecs = this.secs(gr.getValue('u_virtual_agent_seconds'));
         var wait = this.secs(gr.getValue('u_wait_time_seconds'));
-        var queue = gr.getValue('u_queue') || 'Voice';
+        var voice = this.util.isVoice(gr.getValue('u_channel'));
+        var queue = gr.getValue('u_queue') || (voice ? 'Voice' : (gr.getValue('u_channel') || 'Messaging'));
+        var noun = voice ? 'Call' : 'Conversation';
+        var mainIcon = voice ? 'call_inbound' : 'chat';
         var agent = gr.getValue('u_agent') || 'Agent';
         var sentiment = gr.getValue('u_customer_sentiment');
         var sent = this.SENTIMENT[sentiment];
@@ -124,23 +127,24 @@ D365CCJourney.prototype = {
 
         var header = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">' +
             '<div style="display:flex;align-items:center;gap:12px;">' +
-            '<div style="width:40px;height:40px;border-radius:8px;background:' + C.brandBg + ';"><div style="width:20px;height:20px;margin:10px;">' + this.icon('call_inbound', 20, C.brand) + '</div></div>' +
-            '<div><div style="font-size:15px;line-height:20px;font-weight:600;color:' + C.text + ';">Inbound voice call</div>' +
+            '<div style="width:40px;height:40px;border-radius:8px;background:' + C.brandBg + ';"><div style="width:20px;height:20px;margin:10px;">' +             this.icon(mainIcon, 20, C.brand) + '</div></div>' +
+                        '<div><div style="font-size:15px;line-height:20px;font-weight:600;color:' + C.text + ';">' + (voice ? 'Inbound voice call' : this.esc(this.util.channelName(gr.getValue('u_channel')))) + '</div>' +
             '<div style="font-size:12px;line-height:16px;color:' + C.text2 + ';">' + (rcv ? this.esc(rcv.full) : '') + '</div></div></div>' +
             '<div>' + status + '</div></div>';
 
         var timeline = '<div style="display:flex;align-items:flex-start;margin:20px 0 16px;">' +
-            this.step('call_inbound', 'Call received', rcv ? rcv.time : '', 'done') + this.connector(true) +
+            this.step(mainIcon, noun + (voice ? ' received' : ' started'), rcv ? rcv.time : '', 'done') + this.connector(true) +
             this.step('bot', 'Virtual agent', vaSecs || (done ? '' : 'handling'), 'done') + this.connector(true) +
             this.step('queue', queue + ' queue', wait ? 'waited ' + wait : '', (conn || done) ? 'done' : 'active') + this.connector(!!(conn || done)) +
             this.step('headset', agent, conn ? 'answered ' + conn.time : (done ? '' : 'connecting'), done ? 'done' : (conn ? 'active' : 'pending')) + this.connector(done) +
-            this.step(done ? 'check' : 'live', done ? 'Call ended' : 'In progress', done ? (end ? end.time : '') : 'live', done ? 'done' : 'live') +
+            this.step(done ? 'check' : 'live', done ? noun + ' ended' : 'In progress', done ? (end ? end.time : '') : 'live', done ? 'done' : 'live') +
             '</div>';
 
         var stats = this.stat('timer', C.brand, 'Total duration', this.secs(gr.getValue('u_total_duration_seconds')) || (done ? '-' : 'Live'));
-        if (gr.getValue('u_talk_time_seconds')) stats += this.stat('mic', C.brand, 'Talk time', this.secs(gr.getValue('u_talk_time_seconds')));
+        if (voice && gr.getValue('u_talk_time_seconds')) stats += this.stat('mic', C.brand, 'Talk time', this.secs(gr.getValue('u_talk_time_seconds')));
+        if (!voice && gr.getValue('u_handle_time_seconds')) stats += this.stat('chat', C.brand, 'Handle time', this.secs(gr.getValue('u_handle_time_seconds')));
         if (sentiment) stats += this.stat(sent ? sent[0] : 'neutral', sent ? sent[1] : C.text2, 'Customer sentiment', this.esc(sentiment));
-        if (gr.getValue('u_caller_phone')) stats += this.stat('phone', C.brand, 'Caller', this.esc(gr.getValue('u_caller_phone')));
+        if (gr.getValue('u_caller_phone')) stats += this.stat('phone', C.brand, voice ? 'Caller' : 'Customer phone', this.esc(gr.getValue('u_caller_phone')));
         stats = '<div>' + stats + '</div>';
 
         // Play recording / Transcript live in the form header (they open the pop-up with no reload); a link here would reload the Workspace.

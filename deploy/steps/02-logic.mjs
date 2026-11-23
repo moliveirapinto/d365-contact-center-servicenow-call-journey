@@ -8,8 +8,9 @@ const BR_CALC = `(function executeRule(current, previous) {
     var util = new D365CCUtil();
     var received = current.getValue('u_call_received');
 
-    if (received && current.u_title.nil()) current.u_title = util.titleFor(received);
-    if (received) current.u_call_received_label = util.titleFor(received).replace('Phone call received on ', '');
+    var channel = current.getValue('u_channel');
+    if (received && current.u_title.nil()) current.u_title = util.titleFor(received, channel);
+    if (received) current.u_call_received_label = util.titleFor(received, channel).replace(/^.*? (received|started) on /, '');
     if (!current.u_conversation_id.nil()) current.u_conversation_id = String(current.getValue('u_conversation_id')).trim();
 
     // Total duration = ended - received
@@ -85,7 +86,7 @@ const BR_ACTIVITY = `(function executeRule(current, previous) {
         if (!cs.get(current.getValue('u_case'))) return;
 
         var post = function (kind) {
-            var marker = kind === 'created' ? 'Contact Center call created' : 'Contact Center call completed';
+            var marker = 'Contact Center ' + util.noun(current.getValue('u_channel')) + (kind === 'created' ? ' created' : ' completed');
             var seen = new GlideRecord('sys_journal_field');
             seen.addQuery('element_id', cs.getUniqueValue());
             seen.addQuery('element', 'work_notes');
@@ -106,10 +107,11 @@ const BR_ACTIVITY = `(function executeRule(current, previous) {
             if (rec.get(current.getValue('u_case')) && rec.isValidField('close_notes')) {
                 var cur = rec.getValue('close_notes') || '';
                 if (!cur || cur.indexOf('[D365CC]') === 0) {
-                    var secs = parseInt(current.getValue('u_talk_time_seconds') || '0', 10);
-                    var parts = ['[D365CC] Resolved on a Dynamics 365 Contact Center call (' + (current.getValue('u_title') || 'phone call') + ').'];
+                    var noun = util.noun(current.getValue('u_channel'));
+                    var secs = parseInt(current.getValue(noun === 'call' ? 'u_talk_time_seconds' : 'u_handle_time_seconds') || '0', 10);
+                    var parts = ['[D365CC] Resolved on a Dynamics 365 Contact Center ' + noun + ' (' + (current.getValue('u_title') || noun) + ').'];
                     if (current.getDisplayValue('u_agent')) parts.push('Agent: ' + current.getDisplayValue('u_agent') + '.');
-                    if (secs) parts.push('Talk time: ' + Math.floor(secs / 60) + 'm ' + (secs % 60) + 's.');
+                    if (secs) parts.push((noun === 'call' ? 'Talk time: ' : 'Handle time: ') + Math.floor(secs / 60) + 'm ' + (secs % 60) + 's.');
                     if (current.getDisplayValue('u_customer_sentiment')) parts.push('Customer sentiment: ' + current.getDisplayValue('u_customer_sentiment') + '.');
                     if (current.getValue('u_quality_summary')) parts.push('Summary: ' + current.getValue('u_quality_summary'));
                     rec.setValue('close_notes', parts.join(' '));

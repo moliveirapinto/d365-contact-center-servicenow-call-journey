@@ -34,7 +34,7 @@ D365CCUtil.prototype = {
     },
 
     // "Phone call received on Tue, Oct 6 · 1:30 PM ET" in the time zone configured in d365cc.time_zone.
-    titleFor: function (utcValue) {
+    titleFor: function (utcValue, channel) {
         var tzName = this.prop('time_zone', 'UTC');
         var label = this.prop('time_zone_label');
         var millis = new GlideDateTime(utcValue || new GlideDateTime().getValue()).getNumericValue();
@@ -46,7 +46,25 @@ D365CCUtil.prototype = {
             var off = tz.getOffset(millis) / 3600000;
             label = 'UTC' + (off === 0 ? '' : (off > 0 ? '+' : '') + off);
         }
-        return 'Phone call received on ' + text + ' ' + label;
+        return this.channelName(channel) + (this.isVoice(channel) ? ' received on ' : ' started on ') + text + ' ' + label;
+    },
+
+    // u_channel holds "Voice call" for voice and the Dynamics 365 channel name ("Live chat", "WhatsApp", "SMS"...) for messaging.
+    isVoice: function (channel) {
+        return !channel || /voice|call|phone/i.test(String(channel));
+    },
+
+    // Short name used in titles: "Phone call", "Chat", "WhatsApp conversation"...
+    channelName: function (channel) {
+        if (this.isVoice(channel)) return 'Phone call';
+        if (/chat/i.test(String(channel))) return 'Chat';
+        return String(channel) + ' conversation';
+    },
+
+    // Noun used in the Activity stream and resolution notes: call | chat | conversation
+    noun: function (channel) {
+        if (this.isVoice(channel)) return 'call';
+        return /chat/i.test(String(channel)) ? 'chat' : 'conversation';
     },
 
     secondsBetween: function (fromValue, toValue) {
@@ -130,16 +148,18 @@ D365CCUtil.prototype = {
         var icons = new D365CCIcons();
         var esc = function (s) { return j.esc(s); };
         var done = kind === 'completed';
-        var head = done ? 'Contact Center call completed' : 'Contact Center call created';
+        var channel = gr.getValue('u_channel');
+        var voice = this.isVoice(channel);
+        var head = 'Contact Center ' + this.noun(channel) + (done ? ' completed' : ' created');
         var detail;
         if (!done) {
-            detail = 'Inbound voice call, handled by the virtual agent';
+            detail = (voice ? 'Inbound voice call' : this.channelName(channel)) + ', handled by the virtual agent';
         } else {
             var bits = [];
             var total = j.secs(gr.getValue('u_total_duration_seconds'));
             if (total) bits.push('Total ' + total);
-            var talk = j.secs(gr.getValue('u_talk_time_seconds'));
-            if (talk) bits.push('Talk ' + talk);
+            var talk = j.secs(gr.getValue(voice ? 'u_talk_time_seconds' : 'u_handle_time_seconds'));
+            if (talk) bits.push((voice ? 'Talk ' : 'Handle ') + talk);
             if (gr.getValue('u_agent')) bits.push('Agent ' + gr.getValue('u_agent'));
             if (gr.getValue('u_customer_sentiment')) bits.push(gr.getValue('u_customer_sentiment') + ' sentiment');
             if (gr.getValue('u_quality_score')) bits.push('Quality ' + gr.getValue('u_quality_score') + ' (' + j.scoreBand(Number(gr.getValue('u_quality_score')))[0] + ')');
@@ -147,7 +167,7 @@ D365CCUtil.prototype = {
         }
         var html = '<div style="font-family:' + j.FONT + ';">' +
             '<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#242424;">' +
-            '<span style="display:inline-block;width:16px;height:16px;">' + icons.img(done ? 'check' : 'call_inbound', 16, done ? '#107c10' : '#0f6cbd') + '</span>' + head + '<span style="display:none;"> - </span></div>' +
+            '<span style="display:inline-block;width:16px;height:16px;">' + icons.img(done ? 'check' : (voice ? 'call_inbound' : 'chat'), 16, done ? '#107c10' : '#0f6cbd') + '</span>' + head + '<span style="display:none;"> - </span></div>' +
             '<div style="margin:4px 0 0 24px;font-size:13px;color:#424242;">' + esc(gr.getValue('u_title')) + '</div>' +
             (detail ? '<div style="margin:2px 0 0 24px;font-size:13px;color:#616161;">' + esc(detail) + '</div>' : '') +
             '<div style="margin:6px 0 0 24px;"><a href="/d365cc_open.do?sysparm_call=' + gr.getUniqueValue() + '" target="_blank" rel="noopener" style="font-size:13px;font-weight:600;color:#0f6cbd;text-decoration:none;">Open call journey</a></div></div>';

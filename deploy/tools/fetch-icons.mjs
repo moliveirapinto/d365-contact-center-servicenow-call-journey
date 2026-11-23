@@ -29,7 +29,9 @@ const ICONS = [
     ['smile', 'emoji_smile_slight', 'regular'],
     ['neutral', 'emoji_meh', 'regular'],
     ['sad', 'emoji_sad', 'regular'],
-    ['angry', 'emoji_angry', 'regular']
+    ['angry', 'emoji_angry', 'regular'],
+    ['chat', 'chat', 'regular'],
+    ['person', 'person', 'regular']
 ];
 
 const title = (n) => n.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join('%20');

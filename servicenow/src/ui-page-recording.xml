@@ -70,7 +70,7 @@
             for (var n = 0; n !== calls.length; n++) {
                 var b = document.createElement('div');
                 b.className = 'tab';
-                b.textContent = calls[n].title.replace('Phone call received on ', '') + (calls[n].agent ? ' · ' + calls[n].agent : '');
+                b.textContent = calls[n].title.replace(/^.*? (received|started) on /, '') + (calls[n].agent ? ' · ' + calls[n].agent : '');
                 b.setAttribute('data-i', n);
                 b.onclick = function () { show(parseInt(this.getAttribute('data-i'), 10)); };
                 bar.appendChild(b);
