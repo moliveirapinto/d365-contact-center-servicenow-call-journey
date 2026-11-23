@@ -102,14 +102,14 @@ const BR_ACTIVITY = `(function executeRule(current, previous) {
         // One entry per call: posted when the call completes (an in-progress call has no entry yet).
         if (completed) {
             post('completed');
-            // Write the call summary as resolution notes (notes typed by an agent are left alone).
+            // Safety net: write the call summary when the record still has no resolution notes (existing notes are never replaced).
             var rec = new GlideRecord('${CASE}');
             if (rec.get(current.getValue('u_case')) && rec.isValidField('close_notes')) {
                 var cur = rec.getValue('close_notes') || '';
-                if (!cur || cur.indexOf('[D365CC]') === 0) {
+                if (!cur) {
                     var noun = util.noun(current.getValue('u_channel'));
                     var secs = parseInt(current.getValue(noun === 'call' ? 'u_talk_time_seconds' : 'u_handle_time_seconds') || '0', 10);
-                    var parts = ['[D365CC] Resolved on a Dynamics 365 Contact Center ' + noun + ' (' + (current.getValue('u_title') || noun) + ').'];
+                    var parts = ['Resolved on a Dynamics 365 Contact Center ' + noun + ' (' + (current.getValue('u_title') || noun) + ').'];
                     if (current.getDisplayValue('u_agent')) parts.push('Agent: ' + current.getDisplayValue('u_agent') + '.');
                     if (secs) parts.push((noun === 'call' ? 'Talk time: ' : 'Handle time: ') + Math.floor(secs / 60) + 'm ' + (secs % 60) + 's.');
                     if (current.getDisplayValue('u_customer_sentiment')) parts.push('Customer sentiment: ' + current.getDisplayValue('u_customer_sentiment') + '.');
@@ -125,9 +125,11 @@ const BR_ACTIVITY = `(function executeRule(current, previous) {
 })(current, previous);`;
 
 const BR_RESOLUTION = `(function executeRule(current, previous) {
-    // Records from Dynamics 365 Contact Center always carry a resolution code. The resolution notes are written when the call completes (see the Activity rule).
+    // Records from Dynamics 365 Contact Center always carry a resolution code and resolution notes, filled once when the record is created
+    // (and by this rule on any later update if they are still empty). Anything an agent typed is never replaced.
     try {
         if (current.u_d365_conversation_id.nil()) return;
+        var util = new D365CCUtil();
         var codeField = current.isValidField('close_code') ? 'close_code' : (current.isValidField('resolution_code') ? 'resolution_code' : '');
         if (codeField && !current.getValue(codeField)) {
             var ch = new GlideRecord('sys_choice');
@@ -138,6 +140,28 @@ const BR_RESOLUTION = `(function executeRule(current, previous) {
             ch.setLimit(1);
             ch.query();
             if (ch.hasNext()) current.setValue(codeField, 'Solution provided');
+        }
+        if (current.isValidField('close_notes') && !current.getValue('close_notes')) {
+            var call = new GlideRecord('u_cc_call');
+            call.addQuery('u_case', current.getUniqueValue());
+            call.orderByDesc('sys_created_on');
+            call.setLimit(1);
+            call.query();
+            var hasCall = call.next();
+            var channel = hasCall ? call.getValue('u_channel') : (current.getValue('contact_type') === 'chat' ? 'Live chat' : 'Voice call');
+            var noun = util.noun(channel);
+            var who = current.isValidField(util.customerField()) ? current.getElement(util.customerField()).getDisplayValue() : '';
+            var text = 'Handled on a Dynamics 365 Contact Center ' + noun + (who ? ' with ' + who : '') + '.';
+            if (hasCall && call.getValue('u_status') === 'Completed') {
+                var secs = parseInt(call.getValue(util.isVoice(channel) ? 'u_talk_time_seconds' : 'u_handle_time_seconds') || '0', 10);
+                if (call.getDisplayValue('u_agent')) text += ' Agent: ' + call.getDisplayValue('u_agent') + '.';
+                if (secs) text += (util.isVoice(channel) ? ' Talk time: ' : ' Handle time: ') + Math.floor(secs / 60) + 'm ' + (secs % 60) + 's.';
+                if (call.getDisplayValue('u_customer_sentiment')) text += ' Customer sentiment: ' + call.getDisplayValue('u_customer_sentiment') + '.';
+                if (call.getValue('u_quality_summary')) text += ' Summary: ' + call.getValue('u_quality_summary');
+            } else {
+                text += ' The call journey, recording and transcript are linked in the Activity.';
+            }
+            current.setValue('close_notes', text);
         }
     } catch (e) {
         gs.error('[D365CC] Could not fill resolution fields: ' + e);
@@ -177,7 +201,7 @@ export default async function logic() {
     await businessRule('D365CC - Create call from IVR case', CASE, 'after', 200, true, true, BR_CASE,
         'When the Copilot Studio IVR sets the D365 Conversation ID on a Case, create the matching Contact Center Call.');
     await businessRule('D365CC - Fill resolution fields', CASE, 'before', 150, true, true, BR_RESOLUTION,
-        'Sets the Resolution code on records that come from a Contact Center call.');
+        'Sets the Resolution code and Resolution notes on records that come from a Contact Center call, when they are created.');
     await businessRule('D365CC - Post call to Case activity', CALL, 'after', 300, true, true, BR_ACTIVITY,
         'Adds Contact Center Call created / completed entries (with a link to the call journey) to the Case activity stream.');
     log('  business rules ok');
