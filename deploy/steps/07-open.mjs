@@ -15,7 +15,10 @@ const PAGE = `<?xml version="1.0" encoding="utf-8" ?>
     if (/^[0-9a-f]{32}$/.test(cid)) { var g = new GlideRecord('u_cc_call'); if (g.get(cid)) cs = String(g.getValue('u_case') || ''); }
     cs;
 ]]></g:evaluate>
-<g:evaluate var="jvar_path" jelly="true">new D365CCUtil().recordPath('u_cc_call', String(jvar_id));</g:evaluate>
+<g:evaluate var="jvar_path" jelly="true"><![CDATA[
+    var pid = String(RP.getParameterValue('sysparm_call') || '');
+    /^[0-9a-f]{32}$/.test(pid) ? new D365CCUtil().recordPath('u_cc_call', pid) : '';
+]]></g:evaluate>
 <div id="msg" style="font-family:'Source Sans Pro',Helvetica,Arial,sans-serif;font-size:14px;color:#424242;padding:24px;">Opening call journey...</div>
 <div id="callid" data-id="\${jvar_id}" data-path="\${jvar_path}" data-case="\${jvar_case}" style="display:none"></div>
 <script>

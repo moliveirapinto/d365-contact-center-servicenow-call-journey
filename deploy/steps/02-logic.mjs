@@ -99,12 +99,52 @@ const BR_ACTIVITY = `(function executeRule(current, previous) {
         };
 
         // One entry per call: posted when the call completes (an in-progress call has no entry yet).
-        if (completed) post('completed');
+        if (completed) {
+            post('completed');
+            // Replace the placeholder resolution notes with the call summary (notes typed by an agent are left alone).
+            var rec = new GlideRecord('${CASE}');
+            if (rec.get(current.getValue('u_case')) && rec.isValidField('close_notes')) {
+                var cur = rec.getValue('close_notes') || '';
+                if (!cur || cur.indexOf('[D365CC]') === 0) {
+                    var secs = parseInt(current.getValue('u_talk_time_seconds') || '0', 10);
+                    var parts = ['[D365CC] Resolved on a Dynamics 365 Contact Center call (' + (current.getValue('u_title') || 'phone call') + ').'];
+                    if (current.getDisplayValue('u_agent')) parts.push('Agent: ' + current.getDisplayValue('u_agent') + '.');
+                    if (secs) parts.push('Talk time: ' + Math.floor(secs / 60) + 'm ' + (secs % 60) + 's.');
+                    if (current.getDisplayValue('u_customer_sentiment')) parts.push('Customer sentiment: ' + current.getDisplayValue('u_customer_sentiment') + '.');
+                    if (current.getValue('u_quality_summary')) parts.push('Summary: ' + current.getValue('u_quality_summary'));
+                    rec.setValue('close_notes', parts.join(' '));
+                    rec.update();
+                }
+            }
+        }
     } catch (e) {
         gs.error('[D365CC] Could not post call to Case activity: ' + e);
     }
 })(current, previous);`;
 
+const BR_RESOLUTION = `(function executeRule(current, previous) {
+    // Calls from Dynamics 365 Contact Center always carry a resolution code and resolution notes, so the record can be resolved without extra typing.
+    try {
+        if (current.u_d365_conversation_id.nil()) return;
+        var codeField = current.isValidField('close_code') ? 'close_code' : (current.isValidField('resolution_code') ? 'resolution_code' : '');
+        var notesField = current.isValidField('close_notes') ? 'close_notes' : '';
+        if (codeField && !current.getValue(codeField)) {
+            var ch = new GlideRecord('sys_choice');
+            ch.addQuery('name', current.getTableName());
+            ch.addQuery('element', codeField);
+            ch.addQuery('value', 'Solution provided');
+            ch.addQuery('inactive', false);
+            ch.setLimit(1);
+            ch.query();
+            if (ch.hasNext()) current.setValue(codeField, 'Solution provided');
+        }
+        if (notesField && !current.getValue(notesField)) {
+            current.setValue(notesField, '[D365CC] Handled on a Dynamics 365 Contact Center call. The call summary is added here when the call completes.');
+        }
+    } catch (e) {
+        gs.error('[D365CC] Could not fill resolution fields: ' + e);
+    }
+})(current, previous);`;
 async function scriptInclude(name, scriptText, description) {
     return upsert('sys_script_include', `name=${name}`, {
         name, api_name: `global.${name}`, script: scriptText, active: 'true', access: 'public',
@@ -138,6 +178,8 @@ export default async function logic() {
         'Fills title, total duration and virtual agent time; inherits the customer from the Case.');
     await businessRule('D365CC - Create call from IVR case', CASE, 'after', 200, true, true, BR_CASE,
         'When the Copilot Studio IVR sets the D365 Conversation ID on a Case, create the matching Contact Center Call.');
+    await businessRule('D365CC - Fill resolution fields', CASE, 'before', 150, true, true, BR_RESOLUTION,
+        'Sets Resolution code and Resolution notes on records that come from a Contact Center call.');
     await businessRule('D365CC - Post call to Case activity', CALL, 'after', 300, true, true, BR_ACTIVITY,
         'Adds Contact Center Call created / completed entries (with a link to the call journey) to the Case activity stream.');
     log('  business rules ok');
