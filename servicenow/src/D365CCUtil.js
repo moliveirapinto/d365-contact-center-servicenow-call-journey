@@ -172,6 +172,15 @@ D365CCUtil.prototype = {
             if (s) rec.setValue('business_service', s);
         }
         var cf = this.customerField();
+        // A caller the agent bot wrote as text (for example an e-mail address) is not a reference ServiceNow can show. Resolve it to a user.
+        if (rec.isValidField(cf) && rec.getValue(cf) && !/^[0-9a-f]{32}$/.test(String(rec.getValue(cf)))) {
+            var typed = String(rec.getValue(cf));
+            var tu = new GlideRecord(this.customerTable());
+            tu.addQuery('user_name', typed).addOrCondition('email', typed);
+            tu.setLimit(1);
+            tu.query();
+            rec.setValue(cf, tu.next() ? tu.getUniqueValue() : '');
+        }
         if (rec.isValidField(cf) && !rec.getValue(cf)) {
             var who = '';
             var call = new GlideRecord('u_cc_call');

@@ -308,7 +308,7 @@ ROUTE A - Personal Developer Instance:
 Either route: if my agents will use CSM, check that https://<host>/now/cwf/agent/home shows the Customer Service Workspace. For the ITSM edition no Workspace is needed. Testing only, no real customer data.
 
 PHASE 1 - PREFLIGHT
-1. Download file B and the file A for my EDITION. Check A is well-formed XML with this many sys_update_xml elements and size: A-CSM 199 elements, 624,468 bytes; A-ITSM 212 elements, 646,299 bytes. Check B is a valid zip containing solution.xml, customizations.xml and exactly two .json files under Workflows/ (8,229 bytes). Sizes and counts differ only if the README names newer files.
+1. Download file B and the file A for my EDITION. Check A is well-formed XML with this many sys_update_xml elements and size: A-CSM 199 elements, 625,050 bytes; A-ITSM 212 elements, 646,881 bytes. Check B is a valid zip containing solution.xml, customizations.xml and exactly two .json files under Workflows/ (8,229 bytes). Sizes and counts differ only if the README names newer files.
 2. Ask me to sign in to ServiceNow as an admin. Decide the EDITION (PHASE 0 question 8):
    - CSM: the table sn_customerservice_case exists and the "CSM/FSM Configurable Workspace" is available (https://<host>/now/cwf/agent/home opens). If the Workspace is missing, STOP.
    - ITSM: the tables incident and sys_user exist (they always do) and I confirmed I have no CSM or my agents work in Incidents. Tell me this edition creates Incidents, not Cases.
@@ -423,7 +423,7 @@ Optional system properties (Step 2 table) that decide what the rule fills in. Th
 |---|---|---|
 | `d365cc.group_map` | `{"network":"Network","hardware":"Hardware","software":"Software","*":"Service Desk"}` | Assignment group by the incident **category**; `*` is used for any other category. |
 | `d365cc.service_map` | `{"pos\|xstore\|register\|till":"Retail POS (Point of Sale)","*":"IT Services"}` | Service by a word found in the title or description (a regular expression); `*` is the fallback. |
-| `d365cc.default_caller` | *(empty)* | User name or e-mail of the caller used when no customer is known (for example an unknown phone number). Leave it empty if you would rather keep such incidents without a caller. |
+| `d365cc.default_caller` | *(empty)* | User name or e-mail of the caller used when no customer is known (for example an unknown phone number). Leave it empty if you would rather keep such incidents without a caller. A caller the agent bot wrote as plain text (an e-mail address that is not a user) is replaced the same way, because ServiceNow shows it as an empty Caller. |
 
 > **Sentiment and Sentiment Trend** are columns of ServiceNow's Now Assist *Sentiment Analysis* skill. ServiceNow only shows them when that skill is enabled for the Incident table (**Now Assist Admin**). They cannot be filled from outside, so this package does not touch them.
 
