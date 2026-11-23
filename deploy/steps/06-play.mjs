@@ -154,7 +154,7 @@ export const CASE_OPEN = `function onClick(g_form) {
     ga.getXMLAnswer(function (answer) {
         var p = (answer || '0|').split('|');
         var n = parseInt(p[0], 10) || 0;
-        if (n === 0) g_form.addInfoMessage('This case has no calls yet.');
+        if (n === 0) g_form.addInfoMessage('This record has no calls or chats yet.');
         else if (n === 1) g_aw.openRecord('u_cc_call', p[1]);
         else g_modal.showFrame({ url: '/d365cc_calls.do?sysparm_case=' + id, title: 'Calls on this case', size: 'lg', height: 420 });
     });
@@ -210,12 +210,18 @@ const CLIENT = `function onLoad() {
 
 
 export default async function play() {
-    await upsert('sys_ui_action', 'name=Open call journey^table=' + MODE.record, {
-        name: 'Open call journey', table: MODE.record, action_name: 'open_call_journey', active: 'true',
-        client: 'true', form_button: 'true', form_button_v2: 'true', format_for_configurable_workspace: 'true',
-        isolate_script: 'true', show_insert: 'false', show_update: 'true', order: '390', onclick: 'd365ccJourney();', script: CLASSIC_JOURNEY,
-        client_script_v2: CASE_OPEN, hint: 'Open the call journey in a sub tab'
-    });
+    // One header button, named for what the record holds: "Open chat journey" when every call on it is a chat, otherwise "Open call journey".
+    for (const [label, action, order, cond] of [
+        ['Open call journey', 'open_call_journey', '390', '!new D365CCUtil().isChatRecord(current.getUniqueValue())'],
+        ['Open chat journey', 'open_chat_journey', '391', 'new D365CCUtil().isChatRecord(current.getUniqueValue())']
+    ]) {
+        await upsert('sys_ui_action', `name=${label}^table=${MODE.record}`, {
+            name: label, table: MODE.record, action_name: action, active: 'true',
+            client: 'true', form_button: 'true', form_button_v2: 'true', format_for_configurable_workspace: 'true',
+            isolate_script: 'true', show_insert: 'false', show_update: 'true', order, onclick: 'd365ccJourney();', script: CLASSIC_JOURNEY,
+            condition: cond, client_script_v2: CASE_OPEN, hint: label + ' in a sub tab'
+        });
+    }
     await upsert('sys_script_include', 'name=D365CCPlay', {
         name: 'D365CCPlay', api_name: 'global.D365CCPlay', script: AJAX, active: 'true', access: 'public',
         client_callable: 'true', description: 'One-time hand-off that lets journey-card buttons open the recording modal.'

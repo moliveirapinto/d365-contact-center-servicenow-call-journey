@@ -35,7 +35,7 @@ const CALL_COLUMNS = [
     ['u_quality_action_plan', 'Coaching Recommendation', 'string', 4000],
     ['u_quality_evaluated_at', 'Evaluated At', 'glide_date_time', 40],
     ['u_quality_evaluation_json', 'Evaluation Details (JSON)', 'string', 100000],
-    ['u_journey_html', 'Call Journey', 'html', 65000, { readonly: true }]
+    ['u_journey_html', 'Journey', 'html', 65000, { readonly: true }]
 ];
 
 const CASE_COLUMNS = [

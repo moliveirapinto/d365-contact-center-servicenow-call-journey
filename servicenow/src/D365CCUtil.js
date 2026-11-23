@@ -138,6 +138,19 @@ D365CCUtil.prototype = {
         if (phone) nc.mobile_phone = phone;
         return nc.insert();
     },
+    // True when every call linked to the record is a chat / messaging conversation (the header button then reads "Open chat journey").
+    isChatRecord: function (recordId) {
+        var gr = new GlideRecord('u_cc_call');
+        gr.addQuery('u_case', recordId);
+        gr.query();
+        var chats = 0;
+        while (gr.next()) {
+            if (this.isVoice(gr.getValue('u_channel'))) return false;
+            chats++;
+        }
+        return chats > 0;
+    },
+
     // Chats: the Copilot Studio agent creates its own Incident during the chat (its D365 conversation id starts with "deflection:").
     // Find the one that belongs to a chat that started at receivedUtc, so the chat shows on that Incident instead of creating a second one.
     findAgentRecord: function (receivedUtc) {
@@ -203,7 +216,7 @@ D365CCUtil.prototype = {
             '<span style="display:inline-block;width:16px;height:16px;">' + icons.img(done ? 'check' : (voice ? 'call_inbound' : 'chat'), 16, done ? '#107c10' : '#0f6cbd') + '</span>' + head + '<span style="display:none;"> - </span></div>' +
             '<div style="margin:4px 0 0 24px;font-size:13px;color:#424242;">' + esc(gr.getValue('u_title')) + '</div>' +
             (detail ? '<div style="margin:2px 0 0 24px;font-size:13px;color:#616161;">' + esc(detail) + '</div>' : '') +
-            '<div style="margin:6px 0 0 24px;"><a href="/d365cc_open.do?sysparm_call=' + gr.getUniqueValue() + '" target="_blank" rel="noopener" style="font-size:13px;font-weight:600;color:#0f6cbd;text-decoration:none;">Open call journey</a></div></div>';
+            '<div style="margin:6px 0 0 24px;"><a href="/d365cc_open.do?sysparm_call=' + gr.getUniqueValue() + '" target="_blank" rel="noopener" style="font-size:13px;font-weight:600;color:#0f6cbd;text-decoration:none;">Open ' + this.noun(channel) + ' journey</a></div></div>';
         return '[code]' + html + '[/code]';
     },
     type: 'D365CCUtil'

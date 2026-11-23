@@ -19,7 +19,7 @@ const PAGE = `<?xml version="1.0" encoding="utf-8" ?>
     var pid = String(RP.getParameterValue('sysparm_call') || '');
     /^[0-9a-f]{32}$/.test(pid) ? new D365CCUtil().recordPath('u_cc_call', pid) : '';
 ]]></g:evaluate>
-<div id="msg" style="font-family:'Source Sans Pro',Helvetica,Arial,sans-serif;font-size:14px;color:#424242;padding:24px;">Opening call journey...</div>
+<div id="msg" style="font-family:'Source Sans Pro',Helvetica,Arial,sans-serif;font-size:14px;color:#424242;padding:24px;">Opening journey...</div>
 <div id="callid" data-id="\${jvar_id}" data-path="\${jvar_path}" data-case="\${jvar_case}" style="display:none"></div>
 <script>
 (function () {
