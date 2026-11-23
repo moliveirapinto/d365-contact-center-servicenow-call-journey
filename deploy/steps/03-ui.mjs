@@ -49,6 +49,9 @@ async function section(table, caption, viewName, elements, position) {
     const id = await upsert('sys_ui_section', q, {
         name: table, caption, title: 'false', header: 'false', ...(view ? { view: view.sys_id } : {})
     });
+    // Drop fields a previous layout (or ServiceNow itself) put in this section, such as the raw evaluation JSON.
+    const current = await api('GET', `/api/now/table/sys_ui_element?sysparm_query=${encodeURIComponent('sys_ui_section=' + id)}&sysparm_fields=sys_id,element&sysparm_limit=200`);
+    for (const c of current) if (!elements.includes(c.element)) await api('DELETE', `/api/now/table/sys_ui_element/${c.sys_id}`);
     let pos = 0;
     for (const el of elements) {
         const isSplit = el.startsWith('.');
@@ -140,7 +143,8 @@ export default async function ui() {
         '.begin_split', 'u_total_duration_seconds', 'u_virtual_agent_seconds', 'u_wait_time_seconds',
         '.split', 'u_talk_time_seconds', 'u_handle_time_seconds', 'u_conversation_id', 'u_recording_url', '.end_split'
     ];
-    for (const view of [null, 'workspace']) {
+    // The Service Operations Workspace uses the Default view, which ServiceNow fills with every field of the table.
+    for (const view of [null, 'workspace', 'default']) {
         await section(CALL, '', view, callLayout, 0);
         await section(CALL, 'Call details', view, callDetails, 1);
     }
