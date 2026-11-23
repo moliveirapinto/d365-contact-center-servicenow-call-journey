@@ -53,6 +53,20 @@ const BR_CASE = `(function executeRule(current, previous) {
             return;
         }
 
+        // A chat that is already in progress and has no Incident yet belongs to this Incident (the Copilot Studio agent created it during the chat).
+        var waiting = new GlideRecord('${CALL}');
+        waiting.addNullQuery('u_case');
+        waiting.addQuery('u_channel', '!=', 'Voice call');
+        waiting.addQuery('sys_created_on', '>=', gs.minutesAgo(180));
+        waiting.orderByDesc('sys_created_on');
+        waiting.setLimit(1);
+        waiting.query();
+        if (waiting.next()) {
+            waiting.u_case = current.getUniqueValue();
+            waiting.update();
+            return;
+        }
+
         var util = new D365CCUtil();
         var call = new GlideRecord('${CALL}');
         call.initialize();

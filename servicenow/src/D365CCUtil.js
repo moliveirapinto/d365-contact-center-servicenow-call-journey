@@ -138,6 +138,39 @@ D365CCUtil.prototype = {
         if (phone) nc.mobile_phone = phone;
         return nc.insert();
     },
+    // Chats: the Copilot Studio agent creates its own Incident during the chat (its D365 conversation id starts with "deflection:").
+    // Find the one that belongs to a chat that started at receivedUtc, so the chat shows on that Incident instead of creating a second one.
+    findAgentRecord: function (receivedUtc) {
+        var start = new GlideDateTime(receivedUtc || new GlideDateTime().getValue());
+        start.addSeconds(-120);
+        var gr = new GlideRecord(this.recordTable());
+        gr.addQuery('sys_created_on', '>=', start);
+        gr.addQuery('u_d365_conversation_id', 'STARTSWITH', 'deflection:');
+        gr.orderBy('sys_created_on');
+        gr.setLimit(30);
+        gr.query();
+        while (gr.next()) {
+            var real = new GlideRecord('u_cc_call');
+            real.addQuery('u_case', gr.getUniqueValue());
+            real.addQuery('u_conversation_id', 'DOES NOT CONTAIN', 'deflection:');
+            real.setLimit(1);
+            real.query();
+            if (!real.hasNext()) return gr.getUniqueValue();
+        }
+        return '';
+    },
+
+    // Attach a chat's call record to an Incident and drop the placeholder call record the IVR rule created for that Incident.
+    attachCall: function (callGr, recordId) {
+        var ph = new GlideRecord('u_cc_call');
+        ph.addQuery('u_case', recordId);
+        ph.addQuery('u_conversation_id', 'STARTSWITH', 'deflection:');
+        ph.query();
+        while (ph.next()) ph.deleteRecord();
+        callGr.u_case = recordId;
+        callGr.update();
+    },
+
     callPath: function (callSysId) {
         return this.recordPath('u_cc_call', callSysId);
     },

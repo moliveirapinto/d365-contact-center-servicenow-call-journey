@@ -27,6 +27,10 @@
     // Agent accepted a call: make sure it has a Case (the IVR normally creates it, but not for direct calls).
     var wantCase = (body.create_case === true || body.create_case === 'true');
     if (wantCase && !gr.hasNext() && !body.agent_connected) return { skipped: 'not accepted by an agent yet' };
+    // Chats do not get an Incident of their own on accept: the Copilot Studio agent creates one during the chat and the chat is attached
+    // to it (below, or by the IVR rule when the Incident appears later). Only a chat that ends with no Incident gets one created.
+    var chat = !!body.channel && !util.isVoice(body.channel);
+    if (chat) wantCase = false;
 
     function ensureCase() {
         var existingCase = new GlideRecord(RECORD);
@@ -94,5 +98,13 @@
     // D365 is the source of truth for when the call started, so (re)derive the title from it.
     if (body.call_received) gr.u_title = util.titleFor(gr.getValue('u_call_received'), gr.getValue('u_channel'));
     var id = created ? gr.insert() : gr.update();
+    if (chat) {
+        var row = new GlideRecord('u_cc_call');
+        if (row.get(String(id || gr.getUniqueValue())) && row.u_case.nil()) {
+            var target = util.findAgentRecord(row.getValue('u_call_received'));
+            if (!target && body.status === 'Completed') target = ensureCase().id;
+            if (target) { util.attachCall(row, target); caseCreated = ''; }
+        }
+    }
     return { sys_id: String(id || gr.getUniqueValue()), created: created, case_created: String(caseCreated), conversation_id: convId };
 })(request, response);
