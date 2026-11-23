@@ -12,7 +12,7 @@
         'u_status', 'u_channel', 'u_call_received', 'u_agent_connected', 'u_call_ended', 'u_queue', 'u_agent',
         'u_customer_sentiment', 'u_handled_by_virtual_agent', 'u_talk_time_seconds', 'u_wait_time_seconds',
         'u_handle_time_seconds', 'u_called_number', 'u_caller_phone', 'u_quality_score', 'u_quality_plan',
-        'u_quality_summary', 'u_quality_action_plan', 'u_quality_evaluated_at', 'u_quality_evaluation_json'
+        'u_quality_summary', 'u_quality_action_plan', 'u_quality_evaluated_at'
     ];
     var DATES = { u_call_received: 1, u_agent_connected: 1, u_call_ended: 1, u_quality_evaluated_at: 1 };
 
