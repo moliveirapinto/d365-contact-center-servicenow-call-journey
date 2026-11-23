@@ -102,7 +102,7 @@ const BR_ACTIVITY = `(function executeRule(current, previous) {
         // One entry per call: posted when the call completes (an in-progress call has no entry yet).
         if (completed) {
             post('completed');
-            // Replace the placeholder resolution notes with the call summary (notes typed by an agent are left alone).
+            // Write the call summary as resolution notes (notes typed by an agent are left alone).
             var rec = new GlideRecord('${CASE}');
             if (rec.get(current.getValue('u_case')) && rec.isValidField('close_notes')) {
                 var cur = rec.getValue('close_notes') || '';
@@ -125,11 +125,10 @@ const BR_ACTIVITY = `(function executeRule(current, previous) {
 })(current, previous);`;
 
 const BR_RESOLUTION = `(function executeRule(current, previous) {
-    // Calls from Dynamics 365 Contact Center always carry a resolution code and resolution notes, so the record can be resolved without extra typing.
+    // Records from Dynamics 365 Contact Center always carry a resolution code. The resolution notes are written when the call completes (see the Activity rule).
     try {
         if (current.u_d365_conversation_id.nil()) return;
         var codeField = current.isValidField('close_code') ? 'close_code' : (current.isValidField('resolution_code') ? 'resolution_code' : '');
-        var notesField = current.isValidField('close_notes') ? 'close_notes' : '';
         if (codeField && !current.getValue(codeField)) {
             var ch = new GlideRecord('sys_choice');
             ch.addQuery('name', current.getTableName());
@@ -139,9 +138,6 @@ const BR_RESOLUTION = `(function executeRule(current, previous) {
             ch.setLimit(1);
             ch.query();
             if (ch.hasNext()) current.setValue(codeField, 'Solution provided');
-        }
-        if (notesField && !current.getValue(notesField)) {
-            current.setValue(notesField, '[D365CC] Handled on a Dynamics 365 Contact Center call. The call summary is added here when the call completes.');
         }
     } catch (e) {
         gs.error('[D365CC] Could not fill resolution fields: ' + e);
@@ -181,7 +177,7 @@ export default async function logic() {
     await businessRule('D365CC - Create call from IVR case', CASE, 'after', 200, true, true, BR_CASE,
         'When the Copilot Studio IVR sets the D365 Conversation ID on a Case, create the matching Contact Center Call.');
     await businessRule('D365CC - Fill resolution fields', CASE, 'before', 150, true, true, BR_RESOLUTION,
-        'Sets Resolution code and Resolution notes on records that come from a Contact Center call.');
+        'Sets the Resolution code on records that come from a Contact Center call.');
     await businessRule('D365CC - Post call to Case activity', CALL, 'after', 300, true, true, BR_ACTIVITY,
         'Adds Contact Center Call created / completed entries (with a link to the call journey) to the Case activity stream.');
     log('  business rules ok');
