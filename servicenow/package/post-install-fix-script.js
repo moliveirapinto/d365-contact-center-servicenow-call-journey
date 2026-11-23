@@ -4,7 +4,7 @@
  * Everything is already inside the update set, so you do NOT need to run this after installing.
  * Run it only to repair an install (it re-creates the form layout, related lists and softphone) and to give yourself the softphone role. It:
  *   1. checks the d365cc.* system properties are filled in
- *   2. makes sure the Contact Center Call form layouts exist (Call Journey card on top)
+ *   2. makes sure the Contact Center Call form layouts exist (Journey card on top, no raw JSON in the Service Operations Workspace)
  *   3. adds the "Contact Center Calls" related lists to the Case (or Incident) and the customer (contact or user)
  *   4. creates the Dynamics 365 Contact Center softphone (OpenFrame) and lets you use it
  */
@@ -57,6 +57,23 @@
             if (!fs.next()) { fs.initialize(); fs.setValue('sys_ui_form', form.getUniqueValue()); fs.setValue('sys_ui_section', secId); }
             fs.setValue('position', s);
             if (fs.isNewRecord()) fs.insert(); else fs.update();
+        }
+    }
+    // The Service Operations Workspace renders a section that ServiceNow generates with EVERY field of the table (the raw evaluation JSON
+    // included). Keep only the fields of the layout above in it.
+    var layout = [];
+    for (var q = 0; q < sections.length; q++) layout = layout.concat(sections[q][1]);
+    var gen = new GlideRecord('sys_ui_section');
+    gen.addQuery('name', CALL); gen.addQuery('view', 'Default view'); gen.query();
+    while (gen.next()) {
+        var old = new GlideRecord('sys_ui_element');
+        old.addQuery('sys_ui_section', gen.getUniqueValue()); old.query();
+        old.deleteMultiple();
+        for (var g = 0; g < layout.length; g++) {
+            var ne = new GlideRecord('sys_ui_element');
+            ne.initialize(); ne.setValue('sys_ui_section', gen.getUniqueValue()); ne.setValue('element', layout[g]); ne.setValue('position', g);
+            if (layout[g].charAt(0) === '.') ne.setValue('type', layout[g]);
+            ne.insert();
         }
     }
     out('Contact Center Call form layouts are in place.');

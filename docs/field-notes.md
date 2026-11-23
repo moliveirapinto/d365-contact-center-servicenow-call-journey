@@ -27,3 +27,25 @@ These notes come from installing **v1.1.0 (ITSM edition)** on a ServiceNow insta
 * The Edge portal's `screenPop.requested` event was not observed with real calls (item 6).
 * The incident-pop add-on's automatic open was not yet confirmed with a real call.
 * Multi-agent use of the add-on needs a mapping from the Dynamics 365 agent to the ServiceNow user.
+
+# Field notes 2: chat, resolution fields and form clean-up (v1.2.0)
+
+Found on **2026-11-23** while testing v1.1.0 (ITSM edition, Service Operations Workspace) with real calls and chats and a Copilot Studio agent that creates the incident. Every item is fixed in 1.2.0.
+
+| # | What happened | Cause | Fix |
+|---|---|---|---|
+| 1 | **Open call journey** in the Activity blinked and did nothing | The hand-off page built the record path from a Jelly variable that does not exist in that scope, so it was empty and the page went to `/null` | The page reads the call id from the request. |
+| 2 | The same link did nothing again after the call had been opened once | The call was open as its **own Workspace tab**. Both the incident form and the call form answered the hand-off, and the call form opened the call inside itself | Only the incident (or case) form answers. The call-form listener is switched off. |
+| 3 | A block of raw **Evaluation Details (JSON)** showed on the call form in the Service Operations Workspace | The Workspace renders a section called *Default view* that ServiceNow generates with every field of the table | The layout covers that section too, the repair script cleans it, and the JSON is no longer stored on the call. |
+| 4 | **Error loading control** in the right-hand pane of **Recording & transcript** | Microsoft's *Evaluation Details* control needs the Fluent UI library, which is not always loaded when Dynamics 365 is framed by another site | `dynamics365/Apply-ConversationFormFix.ps1` adds the fix script to the Conversation Form. |
+| 5 | Resolution code and notes were empty | Nothing filled them | A before rule fills both when the incident is created. Filling the notes and later replacing them showed crossed-out text in the Activity, so they are written once and never replaced. |
+| 6 | **Two incidents per chat** | Chats were added to the accept flow, and the bot counts as the assigned agent, so the flow created an incident while the Copilot Studio agent created its own | A chat no longer creates an incident on accept. It is attached to the agent's incident by creation time, or gets one when it ends without any. |
+| 7 | Incident titles in **Portuguese**, descriptions in English | The agent wrote the title in the caller's language | Instruct the agent (and its ServiceNow tools) to write every ticket field in English. |
+| 8 | Chats on the incident said *call* and *voice* | The card and text were built for voice only | The channel (`u_channel`) drives the wording, the icon and the *Open chat journey* button. |
+
+Lessons for whoever maintains this:
+
+* Test the link from the **Activity entry of a real incident in the Service Operations Workspace**, with the call already open as a tab and with it closed. Both paths behave differently.
+* Rows written through the Table API do not run business rules unless a field changes. To backfill, set the field you want directly.
+* A Power Automate flow changed with the Dataverse API is only live after the flow is turned off, saved and turned on again.
+* `curl`-style tests do not show what the agent sees. Reproduce in the browser profile the agent uses.

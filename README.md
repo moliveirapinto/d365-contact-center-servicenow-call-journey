@@ -3,7 +3,7 @@
 **Your agents work in ServiceNow. Your calls run on Dynamics 365 Contact Center.**
 Every phone call lands on the ServiceNow Case with its full story, and one click opens the Dynamics 365 recording, transcript and AI quality evaluation **inside ServiceNow**.
 
-This is the ServiceNow port of the [Salesforce Call Journey](https://github.com/moliveirapinto/d365-contact-center-salesforce-call-journey). Built and tested on the **CSM/FSM Configurable Workspace** (Zurich). **New in 1.1.0: an ITSM edition** for instances that use **Incidents** and ServiceNow **users** as callers and do **not** have Customer Service Management. See [Which edition do I need?](#which-edition-do-i-need).
+This is the ServiceNow port of the [Salesforce Call Journey](https://github.com/moliveirapinto/d365-contact-center-salesforce-call-journey). Built and tested on the **CSM/FSM Configurable Workspace** (Zurich). **1.2.0 adds chat and messaging (Live chat, WhatsApp, SMS) next to voice**, with one incident per chat and a Chat Journey. **1.1.0 added an ITSM edition** for instances that use **Incidents** and ServiceNow **users** as callers and do **not** have Customer Service Management. See [Which edition do I need?](#which-edition-do-i-need).
 
 ### 1. The Case: one **Open call journey** button, and a log entry for every call
 
@@ -32,9 +32,9 @@ Pick one update set. Everything on the Dynamics 365 side (the solution and its t
 | Your instance has | Customer Service Management (table `sn_customerservice_case`) | ITSM only: `incident` and `sys_user`, no CSM |
 | An accepted call creates | a **Case** | an **Incident**, with the caller set |
 | The caller is looked up in | customer contacts (`customer_contact`); one is created if nobody matches | ServiceNow **users** (`sys_user`), by phone, e-mail or name; **no user is ever created** (the caller is written in the Incident description when nobody matches) |
-| Update set | `D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.1.0_CSM.xml` | `D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.1.0_ITSM.xml` |
+| Update set | `D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.2.0_CSM.xml` | `D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.2.0_ITSM.xml` |
 | Integration user role | `sn_customerservice_agent` | `itil` |
-| Tested on | Zurich (1.0.3) and Australia (1.1.0), CSM/FSM Configurable Workspace; upgrade from 1.0.3 tested | Australia (1.1.0), classic UI / Next Experience form; see [ITSM edition: what is different](#itsm-edition-what-is-different) |
+| Tested on | Zurich (1.0.3) and Australia (1.1.0 and 1.2.0), CSM/FSM Configurable Workspace; upgrade from 1.0.3 tested | Australia (1.2.0), Service Operations Workspace and classic UI / Next Experience form; see [ITSM edition: what is different](#itsm-edition-what-is-different) |
 
 Both editions show the same softphone (the Dynamics 365 Contact Center Edge desktop in OpenFrame). **Do not import both** on the same instance.
 
@@ -75,6 +75,8 @@ Both editions show the same softphone (the Dynamics 365 Contact Center Edge desk
 | **Recording & transcript** | A large pop-up with the Dynamics 365 conversation: audio player and waveform, transcript, call metrics, quality trendline and the AI evaluation side pane. |
 | **Workspace top bar** | A phone icon that opens the **new Dynamics 365 Contact Center Edge desktop** (inbox, conversations, presence, outbound calls, Copilot) as a 480 px side panel, through ServiceNow OpenFrame. The ServiceNow record stays visible next to it. |
 | **Classic UI** | A *Contact Center Calls* related list on the Case and on the Customer Contact. |
+| **Chats and messaging** | A chat (Live chat, WhatsApp, SMS and the other messaging channels) gets the same treatment: the header button reads **Open chat journey**, the Activity entry is *Contact Center chat completed*, and the call record shows a **Chat Journey** (conversation started, virtual agent, queue, agent, ended, with handle time and sentiment). **One incident per chat:** if a Copilot Studio agent already created an incident during the chat, the chat is attached to it instead of creating a second one. |
+| **Resolution code and notes** | Every incident that comes from a Contact Center call or chat is created with **Resolution code** *Solution provided* and **Resolution notes** (for example *Handled on a Dynamics 365 Contact Center call with Steve Smith.*). Notes an agent typed are never replaced. |
 
 The table above describes the CSM edition. In the [ITSM edition](#itsm-edition-what-is-different) the record is an **Incident** and the buttons are on the classic Incident form.
 
@@ -84,9 +86,9 @@ Calls reach ServiceNow by themselves: when an agent accepts a voice call **or a 
 
 | Folder / file | What it is |
 |---|---|
-| [`servicenow/package/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.1.0_CSM.xml`](servicenow/package) and [`D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.1.0_ITSM.xml`](servicenow/package) | **ServiceNow update sets** (one per [edition](#which-edition-do-i-need)), the whole ServiceNow side in one file: table `u_cc_call` and its fields, Case (or Incident) fields, Script Includes, Business Rules, UI Pages and Actions, the Case button and call picker, form layouts, related lists, the softphone (OpenFrame configuration plus the Edge host page `d365cc_edge` and script `d365cc_edge_host`), the REST API and the system properties. |
+| [`servicenow/package/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.2.0_CSM.xml`](servicenow/package) and [`D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.2.0_ITSM.xml`](servicenow/package) | **ServiceNow update sets** (one per [edition](#which-edition-do-i-need)), the whole ServiceNow side in one file: table `u_cc_call` and its fields, Case (or Incident) fields, Script Includes, Business Rules, UI Pages and Actions, the Case button and call picker, form layouts, related lists, the softphone (OpenFrame configuration plus the Edge host page `d365cc_edge` and script `d365cc_edge_host`), the REST API and the system properties. |
 | [`servicenow/package/post-install-fix-script.js`](servicenow/package/post-install-fix-script.js) | Optional repair script (also inside the update set): re-creates the form layout, related lists and softphone, and gives you the softphone role. You do not need it after a normal install. |
-| [`dynamics365/D365ContactCenter_ServiceNow_CallJourney_1_0_1_0.zip`](dynamics365) | **Dynamics 365 solution** (unmanaged): the two Power Automate flows, a connection reference and three environment variables for the ServiceNow address and login. No credentials inside. |
+| [`dynamics365/D365ContactCenter_ServiceNow_CallJourney_1_1_0_0.zip`](dynamics365) | **Dynamics 365 solution** (unmanaged): the two Power Automate flows, a connection reference and three environment variables for the ServiceNow address and login. No credentials inside. |
 | `servicenow/src/`, `deploy/` | Source of everything above and a scripted installer (see [Alternative: scripted install](#alternative-scripted-install)). |
 | [`servicenow/addons/incident-pop/`](servicenow/addons/incident-pop) | **Optional, experimental add-on:** opens the new Incident (or Case) in ServiceNow after the agent accepts a call. Not part of the update set; see [Optional: open the Incident when the call is accepted](#optional-open-the-incident-when-the-call-is-accepted). |
 | [`docs/field-notes.md`](docs/field-notes.md) | Problems seen in a real install and how they were fixed. |
@@ -259,10 +261,10 @@ You are an installation engineer. Install the community package "Dynamics 365 Co
 SOURCE
 Repository: https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey
 README (source of truth): https://raw.githubusercontent.com/moliveirapinto/d365-contact-center-servicenow-call-journey/main/README.md
-Release v1.1.0 files (A depends on my edition, see PHASE 0 question 8):
-  A-CSM) ServiceNow update set for Customer Service Management: https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/download/v1.1.0/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.1.0_CSM.xml
-  A-ITSM) ServiceNow update set for ITSM only (Incidents, no CSM): https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/download/v1.1.0/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.1.0_ITSM.xml
-  B) Dynamics 365 solution (the same for both): https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/download/v1.1.0/D365ContactCenter_ServiceNow_CallJourney_1_0_1_0.zip
+Release v1.2.0 files (A depends on my edition, see PHASE 0 question 8):
+  A-CSM) ServiceNow update set for Customer Service Management: https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/download/v1.2.0/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.2.0_CSM.xml
+  A-ITSM) ServiceNow update set for ITSM only (Incidents, no CSM): https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/download/v1.2.0/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.2.0_ITSM.xml
+  B) Dynamics 365 solution (the same for both): https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/download/v1.2.0/D365ContactCenter_ServiceNow_CallJourney_1_1_0_0.zip
 Read the README first. If the README and this prompt disagree, follow the README and tell me. If a newer release exists, use the files the README names and tell me. Section names used below (for example "Troubleshooting") are in that README.
 
 HOW TO WORK
@@ -306,7 +308,7 @@ ROUTE A - Personal Developer Instance:
 Either route: if my agents will use CSM, check that https://<host>/now/cwf/agent/home shows the Customer Service Workspace. For the ITSM edition no Workspace is needed. Testing only, no real customer data.
 
 PHASE 1 - PREFLIGHT
-1. Download file B and the file A for my EDITION. Check A is well-formed XML with this many sys_update_xml elements and size: A-CSM 197 elements, 600,428 bytes; A-ITSM 210 elements, 622,521 bytes. Check B is a valid zip containing solution.xml, customizations.xml and exactly two .json files under Workflows/ (8,122 bytes). Sizes and counts differ only if the README names newer files.
+1. Download file B and the file A for my EDITION. Check A is well-formed XML with this many sys_update_xml elements and size: A-CSM 199 elements, 622,067 bytes; A-ITSM 212 elements, 644,958 bytes. Check B is a valid zip containing solution.xml, customizations.xml and exactly two .json files under Workflows/ (8,229 bytes). Sizes and counts differ only if the README names newer files.
 2. Ask me to sign in to ServiceNow as an admin. Decide the EDITION (PHASE 0 question 8):
    - CSM: the table sn_customerservice_case exists and the "CSM/FSM Configurable Workspace" is available (https://<host>/now/cwf/agent/home opens). If the Workspace is missing, STOP.
    - ITSM: the tables incident and sys_user exist (they always do) and I confirmed I have no CSM or my agents work in Incidents. Tell me this edition creates Incidents, not Cases.
@@ -315,7 +317,7 @@ PHASE 1 - PREFLIGHT
 
 PHASE 2 - SERVICENOW PACKAGE
 1. System Update Sets > Retrieved Update Sets > "Import Update Set from XML" > upload file A-CSM or A-ITSM according to EDITION.
-2. Open "D365 Contact Center - Call Journey 1.1.0 (CSM)" or "(ITSM)". State must be Loaded and it must list 197 update records (CSM) or 210 (ITSM).
+2. Open "D365 Contact Center - Call Journey 1.2.0 (CSM)" or "(ITSM)". State must be Loaded and it must list 199 update records (CSM) or 212 (ITSM).
 3. Click "Preview Update Set" and wait until the state is Previewed (the progress dialog says "Succeeded"; it takes up to a minute or two). There must be 0 problems and 0 collisions. If there is any problem, STOP and show it to me. Do not accept or skip problems.
 4. Click "Commit Update Set" (confirm the warning about mapping custom tables to an application: it does not apply) and wait until the state is Committed. Do not click twice.
 5. Verify, and report each item: table u_cc_call exists; Script Includes D365CCJourney, D365CCUtil, D365CCPlay and D365CCIcons exist; Scripted REST API "D365 Contact Center" is active with POST /api/global/d365cc/call; OpenFrame configuration "Dynamics 365 Contact Center" exists with URL /d365cc_edge.do; UI Page d365cc_edge and UI Script d365cc_edge_host exist; UI Action "Open call journey" exists on sn_customerservice_case (CSM) or incident (ITSM); UI Action "Recording & transcript" exists on u_cc_call; four Business Rules whose names start with "D365CC" exist, each only ONCE (a duplicate means two editions or two versions were mixed: STOP).
@@ -379,9 +381,9 @@ Give me a table with every phase and its result, say which EDITION (CSM or ITSM)
 
 ### Step 1 – ServiceNow: import the update set
 
-1. Download the update set for your [edition](#which-edition-do-i-need) from the [latest release](https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/latest) (or the **Download raw file** button on GitHub): [`D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.1.0_CSM.xml`](servicenow/package/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.1.0_CSM.xml) for CSM, or [`D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.1.0_ITSM.xml`](servicenow/package/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.1.0_ITSM.xml) for ITSM.
+1. Download the update set for your [edition](#which-edition-do-i-need) from the [latest release](https://github.com/moliveirapinto/d365-contact-center-servicenow-call-journey/releases/latest) (or the **Download raw file** button on GitHub): [`D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.2.0_CSM.xml`](servicenow/package/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.2.0_CSM.xml) for CSM, or [`D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.2.0_ITSM.xml`](servicenow/package/D365_ContactCenter_CallJourney_ServiceNow_UpdateSet_1.2.0_ITSM.xml) for ITSM.
 2. In ServiceNow open **System Update Sets → Retrieved Update Sets** and click **Import Update Set from XML**.
-3. Choose the file and click **Upload**. The update set **D365 Contact Center - Call Journey 1.1.0 (CSM)** or **(ITSM)** appears with state *Loaded*.
+3. Choose the file and click **Upload**. The update set **D365 Contact Center - Call Journey 1.2.0 (CSM)** or **(ITSM)** appears with state *Loaded*.
 4. Open it and click **Preview Update Set**. Wait until the state is *Previewed*. There should be **0 problems**.
 5. Click **Commit Update Set**.
 
@@ -425,7 +427,7 @@ Dynamics 365 uses this user to send calls to ServiceNow.
 ### Step 4 – Dynamics 365: import the solution
 
 1. Go to <https://make.powerapps.com>, pick your **Dynamics 365 Contact Center environment**, then **Solutions → Import solution**.
-2. Choose [`D365ContactCenter_ServiceNow_CallJourney_1_0_1_0.zip`](dynamics365/D365ContactCenter_ServiceNow_CallJourney_1_0_1_0.zip) and click **Next**.
+2. Choose [`D365ContactCenter_ServiceNow_CallJourney_1_1_0_0.zip`](dynamics365/D365ContactCenter_ServiceNow_CallJourney_1_1_0_0.zip) and click **Next**.
 3. On the connections page, **create or choose a Microsoft Dataverse connection** for *D365 Contact Center - Dataverse*, and fill the three environment variables:
 
    | Variable | Value |
@@ -436,12 +438,14 @@ Dynamics 365 uses this user to send calls to ServiceNow.
 
 4. Click **Import** and wait for the *success* message.
 
+5. **Fix the evaluation pane (once per Dynamics 365 environment).** Microsoft's *Evaluation Details* control shows **Error loading control** when the conversation is opened inside another site, which is how the **Recording & transcript** pop-up shows it. Run, signed in with `az login` as a System Administrator or System Customizer: `pwsh -File dynamics365/Apply-ConversationFormFix.ps1 -OrgUrl https://<org>.crm.dynamics.com` (add `-WhatIf` first to preview). It creates the web resource `new_d365cc_evaluationpanefix.js`, adds it and its On load handler to the *Conversation Form*, publishes, and tells you whether your environment enforces a content security policy (then `https://*.service-now.com` must be allowed in *frame-ancestors*). Safe to run twice.
+
 The solution contains two flows:
 
 | Flow | Does |
 |---|---|
-| **D365 Contact Center - Create ServiceNow case when an agent accepts a call** | Every minute, finds voice calls an agent has accepted and sends them to ServiceNow, which creates the **Case (CSM) or Incident (ITSM) and the call record**. It looks up the customer by phone, e-mail or name; the CSM edition creates a contact when nobody matches, the ITSM edition never creates a user. |
-| **D365 Contact Center - Sync ended calls to ServiceNow** | When a voice conversation ends, sends the **timings, sentiment and AI quality evaluation** to ServiceNow. |
+| **D365 Contact Center - Create ServiceNow case when an agent accepts a call** | Every minute, finds calls **and chats** an agent has accepted and sends them to ServiceNow, which creates the **Case (CSM) or Incident (ITSM) and the call record**. It looks up the customer by phone, e-mail or name; the CSM edition creates a contact when nobody matches, the ITSM edition never creates a user. |
+| **D365 Contact Center - Sync ended calls to ServiceNow** | When a call or chat ends, sends the **channel, timings, sentiment and AI quality evaluation** to ServiceNow. |
 
 > The password is stored as a plain environment variable. For production move it to **Azure Key Vault** (a secret environment variable).
 
@@ -449,7 +453,7 @@ The solution contains two flows:
 
 1. In **Solutions → D365 Contact Center - ServiceNow Call Journey** open **Connection references**, open *D365 Contact Center - Dataverse* and select your connection if it is not set.
 2. Open each of the two flows and click **Turn on**. A flow that is off, or has no connection, does nothing.
-3. The account that owns the connection must be able to **read voice conversations, contacts and evaluation history** in the environment.
+3. The account that owns the connection must be able to **read voice and chat conversations, contacts and evaluation history** in the environment.
 
 ### Step 6 – Softphone in the ServiceNow Workspace (or the ITSM header)
 
@@ -473,6 +477,10 @@ If your IVR runs in Copilot Studio and creates the Case itself, write the conver
 * Map the field **`u_d365_conversation_id`** to `Global.msdyn_ConversationId`.
 
 If you skip this, the accept flow creates the Case for you.
+
+**Chats.** In a chat the agent's conversation id is not the Dynamics 365 conversation id, so the match is made by time instead: the accept flow does **not** create an incident for a chat. The chat's call record waits, and is attached to the incident the agent creates during the chat (found by its creation time and its `deflection:` conversation id). A chat that ends with no incident from the agent gets one then. Two chats running at the same moment can be paired the wrong way round.
+
+**Keep the tickets in English.** The incident title and description are written by the agent. Add to the agent's instructions, and to the description of its ServiceNow Create Record and Update Record tools: *every ServiceNow field (short_description, description, close_notes, work_notes) must always be written in English, translated if needed; only what is said to the caller follows the caller's language.* Then publish the agent.
 
 ### Optional: open the Incident when the call is accepted
 
@@ -664,7 +672,17 @@ For instances that use ITSM only (Incidents, no Customer Service Management), fo
 
 * **Short calls (fixed in 1.0.2).** Earlier versions missed calls that ended within about a minute, because the accept flow only looked at calls still open when it ran, so no Case was created. From 1.0.2 the flow also looks at ended calls from the last 30 minutes, and the ServiceNow service gives a call that was synced first its Case. If you installed an earlier version, import the new update set and solution (see Step 1 and Step 4).
 
-* **What is new in 1.1.0.**
+* **What is new in 1.2.0.**
+  * **Chat and messaging.** Calls and chats share the call record. The channel (`u_channel`) drives the title (*Chat started on ...*), the icon, the timeline wording, the handle time, the Activity entry and the header button (*Open chat journey*). The accept flow now lists every channel and both flows send the channel. Update the Dynamics 365 solution to 1.1.0.0 for this.
+  * **One incident per chat.** The chat is attached to the incident the Copilot Studio agent creates, instead of creating a second one (see Step 7). A chat that ends without any incident gets one.
+  * **Resolution code and notes** are filled when the incident is created, and never replaced afterwards (replacing them showed crossed-out text in the Activity).
+  * **Open call journey link fixed.** The hand-off page read its variable from a place that does not exist, so the link blinked and went to `/null`. The call form no longer answers the hand-off, because when the call was already open as its own Workspace tab it opened the call inside itself and the click seemed to do nothing.
+  * **No raw JSON on the call form.** The Service Operations Workspace generates a *Default view* section with every field of the table, including the AI evaluation JSON. The layout now covers it and the JSON is no longer stored on the call. Existing installs: run the repair script (Step 2).
+  * **Evaluation pane error fixed** with `dynamics365/Apply-ConversationFormFix.ps1` (Step 4).
+  * The field label **Call Journey** is now **Journey**.
+  * **Upgrading from 1.1.0:** import the 1.2.0 update set (preview must show 0 problems), set `d365cc.org_url` and `d365cc.app_id` again, run the repair script once, import the solution 1.1.0.0 over the existing one (keep your connection and variables), run `Apply-ConversationFormFix.ps1`, and hard-refresh the Workspace.
+
+* **What was new in 1.1.0.**
   * **ITSM edition** (Incidents, ServiceNow users as callers, no CSM needed), see [Which edition do I need?](#which-edition-do-i-need).
   * **Screen pop fixed.** Before, the lookup of the customer ran in the softphone page without a session token, so ServiceNow rejected it (HTTP 401) and no customer was ever opened. The lookup now runs on the server (`/d365cc_find.do`) with the signed-in agent's own access, and compares phone numbers in any format (spaces, dashes, brackets, with or without country code: the last 10 digits).
   * **Customer match on accepted calls fixed.** The phone match on the call-creation side never matched (it relied on a condition that was silently ignored), so customers were found by name only. Phone, then e-mail, then name now all work.
