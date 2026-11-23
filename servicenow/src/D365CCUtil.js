@@ -138,6 +138,63 @@ D365CCUtil.prototype = {
         if (phone) nc.mobile_phone = phone;
         return nc.insert();
     },
+    // JSON property with a default, for example d365cc.group_map.
+    jsonProp: function (name, fallback) {
+        try { return JSON.parse(this.prop(name) || ''); } catch (e) { return fallback; }
+    },
+
+    // Group or business service by name; '' when it does not exist.
+    idByName: function (table, name) {
+        if (!name) return '';
+        var gr = new GlideRecord(table);
+        gr.addQuery('name', name);
+        gr.setLimit(1);
+        gr.query();
+        return gr.next() ? gr.getUniqueValue() : '';
+    },
+
+    // Fill what a Contact Center record should never show empty: caller, assignment group and service.
+    // d365cc.group_map and d365cc.service_map are JSON ({"network": "Network", "*": "Service Desk"}): the key is the record category (groups) or
+    // a word found in the title and description (services). d365cc.default_caller (a user name or e-mail) is the caller of last resort.
+    triage: function (rec) {
+        if (rec.isValidField('assignment_group') && !rec.getValue('assignment_group')) {
+            var groups = this.jsonProp('group_map', { network: 'Network', hardware: 'Hardware', software: 'Software', '*': 'Service Desk' });
+            var cat = String(rec.getValue('category') || '').toLowerCase();
+            var g = this.idByName('sys_user_group', groups[cat] || groups['*']);
+            if (g) rec.setValue('assignment_group', g);
+        }
+        if (rec.isValidField('business_service') && !rec.getValue('business_service')) {
+            var services = this.jsonProp('service_map', { 'pos|xstore|register|till': 'Retail POS (Point of Sale)', '*': 'IT Services' });
+            var text = (String(rec.getValue('short_description') || '') + ' ' + String(rec.getValue('description') || '')).toLowerCase();
+            var name = services['*'];
+            for (var k in services) { if (k !== '*' && new RegExp(k).test(text)) { name = services[k]; break; } }
+            var s = this.idByName('cmdb_ci_service', name);
+            if (s) rec.setValue('business_service', s);
+        }
+        var cf = this.customerField();
+        if (rec.isValidField(cf) && !rec.getValue(cf)) {
+            var who = '';
+            var call = new GlideRecord('u_cc_call');
+            call.addQuery('u_case', rec.getUniqueValue());
+            call.addNotNullQuery('u_contact');
+            call.setLimit(1);
+            call.query();
+            if (call.next()) who = call.getValue('u_contact');
+            if (!who && rec.isValidField('parent_incident') && rec.getValue('parent_incident')) {
+                var parent = new GlideRecord(this.recordTable());
+                if (parent.get(rec.getValue('parent_incident'))) who = parent.getValue(cf);
+            }
+            if (!who && this.prop('default_caller')) {
+                var u = new GlideRecord(this.customerTable());
+                u.addQuery('user_name', this.prop('default_caller')).addOrCondition('email', this.prop('default_caller'));
+                u.setLimit(1);
+                u.query();
+                if (u.next()) who = u.getUniqueValue();
+            }
+            if (who) rec.setValue(cf, who);
+        }
+    },
+
     // True when every call linked to the record is a chat / messaging conversation (the header button then reads "Open chat journey").
     isChatRecord: function (recordId) {
         var gr = new GlideRecord('u_cc_call');

@@ -76,7 +76,7 @@ Both editions show the same softphone (the Dynamics 365 Contact Center Edge desk
 | **Workspace top bar** | A phone icon that opens the **new Dynamics 365 Contact Center Edge desktop** (inbox, conversations, presence, outbound calls, Copilot) as a 480 px side panel, through ServiceNow OpenFrame. The ServiceNow record stays visible next to it. |
 | **Classic UI** | A *Contact Center Calls* related list on the Case and on the Customer Contact. |
 | **Chats and messaging** | A chat (Live chat, WhatsApp, SMS and the other messaging channels) gets the same treatment: the header button reads **Open chat journey**, the Activity entry is *Contact Center chat completed*, and the call record shows a **Chat Journey** (conversation started, virtual agent, queue, agent, ended, with handle time and sentiment). **One incident per chat:** if a Copilot Studio agent already created an incident during the chat, the chat is attached to it instead of creating a second one. |
-| **Resolution code and notes** | Every incident that comes from a Contact Center call or chat is created with **Resolution code** *Solution provided* and **Resolution notes** (for example *Handled on a Dynamics 365 Contact Center call with Steve Smith.*). Notes an agent typed are never replaced. |
+| **Fields never left empty** | Every incident that comes from a Contact Center call or chat is created with **Resolution code** *Solution provided*, **Resolution notes** (for example *Handled on a Dynamics 365 Contact Center call with Steve Smith.*), an **Assignment group**, a **Service** and a **Caller**. Anything an agent or the agent bot already filled in is never replaced. See [Settings for the filled-in fields](#settings-for-the-filled-in-fields). |
 
 The table above describes the CSM edition. In the [ITSM edition](#itsm-edition-what-is-different) the record is an **Incident** and the buttons are on the classic Incident form.
 
@@ -308,7 +308,7 @@ ROUTE A - Personal Developer Instance:
 Either route: if my agents will use CSM, check that https://<host>/now/cwf/agent/home shows the Customer Service Workspace. For the ITSM edition no Workspace is needed. Testing only, no real customer data.
 
 PHASE 1 - PREFLIGHT
-1. Download file B and the file A for my EDITION. Check A is well-formed XML with this many sys_update_xml elements and size: A-CSM 199 elements, 622,067 bytes; A-ITSM 212 elements, 644,958 bytes. Check B is a valid zip containing solution.xml, customizations.xml and exactly two .json files under Workflows/ (8,229 bytes). Sizes and counts differ only if the README names newer files.
+1. Download file B and the file A for my EDITION. Check A is well-formed XML with this many sys_update_xml elements and size: A-CSM 199 elements, 624,468 bytes; A-ITSM 212 elements, 646,299 bytes. Check B is a valid zip containing solution.xml, customizations.xml and exactly two .json files under Workflows/ (8,229 bytes). Sizes and counts differ only if the README names newer files.
 2. Ask me to sign in to ServiceNow as an admin. Decide the EDITION (PHASE 0 question 8):
    - CSM: the table sn_customerservice_case exists and the "CSM/FSM Configurable Workspace" is available (https://<host>/now/cwf/agent/home opens). If the Workspace is missing, STOP.
    - ITSM: the tables incident and sys_user exist (they always do) and I confirmed I have no CSM or my agents work in Incidents. Tell me this edition creates Incidents, not Cases.
@@ -414,6 +414,18 @@ The **softphone** (the Edge desktop in the OpenFrame panel) reads `d365cc.org_ur
 The update set also set the edition properties (`d365cc.mode`, `d365cc.record_table`, `d365cc.customer_table`, `d365cc.customer_field`, `d365cc.account_table`, `d365cc.create_customer`, `d365cc.record_url`). Leave them as they are, except `d365cc.record_url` (see [ITSM edition: what is different](#itsm-edition-what-is-different)).
 
 > If something looks incomplete, you can run the optional repair script: **System Definition → Fix Scripts → D365CC - Post-install configuration → Run Fix Script**. It is safe to run any number of times.
+
+### Settings for the filled-in fields
+
+Optional system properties (Step 2 table) that decide what the rule fills in. The defaults work when the groups and services below exist; a group or service that does not exist is skipped, never created.
+
+| Property | Default | Meaning |
+|---|---|---|
+| `d365cc.group_map` | `{"network":"Network","hardware":"Hardware","software":"Software","*":"Service Desk"}` | Assignment group by the incident **category**; `*` is used for any other category. |
+| `d365cc.service_map` | `{"pos\|xstore\|register\|till":"Retail POS (Point of Sale)","*":"IT Services"}` | Service by a word found in the title or description (a regular expression); `*` is the fallback. |
+| `d365cc.default_caller` | *(empty)* | User name or e-mail of the caller used when no customer is known (for example an unknown phone number). Leave it empty if you would rather keep such incidents without a caller. |
+
+> **Sentiment and Sentiment Trend** are columns of ServiceNow's Now Assist *Sentiment Analysis* skill. ServiceNow only shows them when that skill is enabled for the Incident table (**Now Assist Admin**). They cannot be filled from outside, so this package does not touch them.
 
 ### Step 3 – ServiceNow: create the integration user
 
@@ -675,7 +687,7 @@ For instances that use ITSM only (Incidents, no Customer Service Management), fo
 * **What is new in 1.2.0.**
   * **Chat and messaging.** Calls and chats share the call record. The channel (`u_channel`) drives the title (*Chat started on ...*), the icon, the timeline wording, the handle time, the Activity entry and the header button (*Open chat journey*). The accept flow now lists every channel and both flows send the channel. Update the Dynamics 365 solution to 1.1.0.0 for this.
   * **One incident per chat.** The chat is attached to the incident the Copilot Studio agent creates, instead of creating a second one (see Step 7). A chat that ends without any incident gets one.
-  * **Resolution code and notes** are filled when the incident is created, and never replaced afterwards (replacing them showed crossed-out text in the Activity).
+  * **Resolution code, notes, assignment group, service and caller** are filled when the incident is created, and never replaced afterwards (replacing them showed crossed-out text in the Activity). Caller: the contact of the call, then the caller of the parent incident, then `d365cc.default_caller`.
   * **Open call journey link fixed.** The hand-off page read its variable from a place that does not exist, so the link blinked and went to `/null`. The call form no longer answers the hand-off, because when the call was already open as its own Workspace tab it opened the call inside itself and the click seemed to do nothing.
   * **No raw JSON on the call form.** The Service Operations Workspace generates a *Default view* section with every field of the table, including the AI evaluation JSON. The layout now covers it and the JSON is no longer stored on the call. Existing installs: run the repair script (Step 2).
   * **Evaluation pane error fixed** with `dynamics365/Apply-ConversationFormFix.ps1` (Step 4).

@@ -139,7 +139,7 @@ const BR_ACTIVITY = `(function executeRule(current, previous) {
 })(current, previous);`;
 
 const BR_RESOLUTION = `(function executeRule(current, previous) {
-    // Records from Dynamics 365 Contact Center always carry a resolution code and resolution notes, filled once when the record is created
+    // Records from Dynamics 365 Contact Center always carry a resolution code and resolution notes, plus a caller, assignment group and service, filled once when the record is created
     // (and by this rule on any later update if they are still empty). Anything an agent typed is never replaced.
     try {
         if (current.u_d365_conversation_id.nil()) return;
@@ -155,6 +155,7 @@ const BR_RESOLUTION = `(function executeRule(current, previous) {
             ch.query();
             if (ch.hasNext()) current.setValue(codeField, 'Solution provided');
         }
+        util.triage(current);
         if (current.isValidField('close_notes') && !current.getValue('close_notes')) {
             var call = new GlideRecord('u_cc_call');
             call.addQuery('u_case', current.getUniqueValue());
